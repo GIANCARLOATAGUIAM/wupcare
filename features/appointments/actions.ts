@@ -9,6 +9,7 @@ import { dbErrorMessage, isUniqueViolation } from "@/lib/db-errors";
 import { fromManilaInput } from "@/lib/format";
 import { clockTime, formValues, isoDate, localDateTime, optionalText, parseForm, requiredText, uuid, type FormState } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
+import { myAcademicProfile } from "@/features/account/academic";
 
 import { detailHref, safeBackHref } from "./categories";
 
@@ -39,6 +40,10 @@ export async function requestAppointment(_prev: FormState, formData: FormData): 
   const { data: profile } = await supabase.from("profiles").select("student_id").eq("id", user.id).maybeSingle();
   if (!profile?.student_id) {
     return { error: "Your account is not linked to a student record yet. Please visit the clinic.", values: formValues(formData) };
+  }
+  const academic = await myAcademicProfile(supabase);
+  if (academic && !academic.complete) {
+    return { error: "Complete your Department/College and Year Level in My Account before requesting an appointment.", values: formValues(formData) };
   }
 
   const { error } = await supabase.from("appointments").insert({ ...parsed.data, student_id: profile.student_id });

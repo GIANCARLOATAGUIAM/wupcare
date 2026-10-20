@@ -13,10 +13,10 @@ export const STUDENT_TABS = ["all", "pending", "upcoming", "completed", "closed"
 export type StudentTab = (typeof STUDENT_TABS)[number];
 export const STUDENT_TAB_LABELS: Record<StudentTab, string> = {
   all: "All",
-  pending: "Pending",
+  pending: "Pending Approval",
   upcoming: "Upcoming",
   completed: "Completed",
-  closed: "Cancelled / Declined",
+  closed: "Cancelled / Not Approved",
 };
 
 export function studentTab(value: string | undefined): StudentTab {

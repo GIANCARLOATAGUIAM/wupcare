@@ -36,6 +36,13 @@ export function scheduleChanged(a: Pick<StudentAppointment, "preferred_date" | "
   return toManilaInput(a.scheduled_at) !== `${a.preferred_date}T${a.preferred_time.slice(0, 5)}`;
 }
 
+// What a closed request means for the student. Declined and cancelled stay
+// separate: the clinic not approving a request is not a cancellation.
+export const STATUS_NOTES: Partial<Record<Status, string>> = {
+  declined: "The clinic did not approve this request. You can submit a new request.",
+  cancelled: "This appointment was cancelled and will no longer proceed.",
+};
+
 // One appointment as the student sees it. Title = reason; status at the
 // upper right. Pending/cancelled/declined show the preferred schedule;
 // approved/completed show the confirmed clinic schedule prominently, plus
@@ -50,7 +57,7 @@ export function StudentAppointmentCard({ appointment: a, headingLevel = "h3" }: 
     <article className="grid gap-3 rounded-lg border bg-card p-3 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <Heading className="min-w-0 text-sm font-medium break-words">{a.reason}</Heading>
-        <AppointmentStatusBadge status={a.status} />
+        <AppointmentStatusBadge status={a.status} audience="student" />
       </div>
       <dl className="grid gap-3 text-sm sm:grid-cols-[repeat(2,minmax(0,16rem))] sm:gap-x-8">
         {confirmed ? (
@@ -70,9 +77,10 @@ export function StudentAppointmentCard({ appointment: a, headingLevel = "h3" }: 
           </div>
         ) : null}
       </dl>
+      {STATUS_NOTES[a.status] ? <p className="text-sm text-muted-foreground">{STATUS_NOTES[a.status]}</p> : null}
       {a.staff_remarks ? (
         <p className="rounded-md bg-muted px-3 py-2 text-sm break-words">
-          <span className="font-medium">Clinic remarks: </span>
+          <span className="font-medium">{a.status === "declined" ? "Reason from the clinic: " : "Clinic remarks: "}</span>
           {a.staff_remarks}
         </p>
       ) : null}

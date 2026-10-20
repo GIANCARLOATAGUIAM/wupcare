@@ -123,7 +123,7 @@ export default async function AppointmentPage({ params, searchParams }: PageProp
         <DetailItem label="Reason" className="sm:col-span-2 lg:col-span-3">
           {a.reason}
         </DetailItem>
-        <DetailItem label="Clinic remarks" className="sm:col-span-2 lg:col-span-3">
+        <DetailItem label={a.status === "declined" ? "Reason for declining" : "Clinic remarks"} className="sm:col-span-2 lg:col-span-3">
           {a.staff_remarks}
         </DetailItem>
         <DetailItem label="Requested by">
@@ -150,7 +150,7 @@ export default async function AppointmentPage({ params, searchParams }: PageProp
             </ActionForm>
           </ActionPanel>
           <ActionPanel title="Decline">
-            <ActionForm action={act("decline")} submitLabel="Decline" variant="outline" confirm={{ title: "Decline Appointment Request?", message: "This request will be marked as declined. The student will see your reason and must submit a new request to book again.", confirmLabel: "Decline Request", cancelLabel: "Keep Request", destructive: true }}>
+            <ActionForm action={act("decline")} submitLabel="Decline" variant="outline" confirm={{ title: "Decline Appointment Request?", message: "This request will be marked as declined. The student will see it as Not Approved, with your reason, and must submit a new request to book again.", confirmLabel: "Decline Request", cancelLabel: "Keep Request", destructive: true }}>
               {backField}
               <TextAreaField id="decline-staff_remarks" name="staff_remarks" label="Reason for declining" required rows={2} />
             </ActionForm>

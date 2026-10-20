@@ -38,7 +38,7 @@ export function safeBackHref(value: unknown) {
 export const DONE_MESSAGES = {
   approve: { text: "Appointment approved.", category: "scheduled" },
   reschedule: { text: "Appointment rescheduled.", category: "scheduled" },
-  book: { text: "Appointment booked.", category: "scheduled" },
+  book: { text: "Appointment booked. A linked student account shows it under Upcoming.", category: "scheduled" },
   decline: { text: "Request declined.", category: "history" },
   cancel: { text: "Appointment cancelled.", category: "history" },
   complete: { text: "Marked as completed.", category: "history" },

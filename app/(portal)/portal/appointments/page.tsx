@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { CalendarClock, CalendarPlus } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { requireCompleteProfile } from "@/features/account/academic";
 import { LinkTabs, Pagination, hrefWith, pageParam, param } from "@/components/app/list-controls";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,15 @@ const EMPTY: Record<ReturnType<typeof studentTab>, string> = {
   pending: "You have no request waiting for the clinic.",
   upcoming: "You have no approved appointments coming up.",
   completed: "No completed appointments yet.",
-  closed: "No cancelled or declined requests.",
+  closed: "No cancelled or not approved requests.",
+};
+
+const EMPTY_TITLES: Record<ReturnType<typeof studentTab>, string> = {
+  all: "No appointments yet",
+  pending: "No requests pending approval",
+  upcoming: "No upcoming appointments",
+  completed: "No completed appointments",
+  closed: "No cancelled or not approved requests",
 };
 
 export default async function MyAppointmentsPage({ searchParams }: PageProps<"/portal/appointments">) {
@@ -62,6 +71,8 @@ export default async function MyAppointmentsPage({ searchParams }: PageProps<"/p
       </div>
     );
   }
+
+  await requireCompleteProfile(supabase, "/portal/appointments");
 
   // RLS returns only this student's appointments; the student_id filter repeats it.
   let query = supabase
@@ -99,7 +110,7 @@ export default async function MyAppointmentsPage({ searchParams }: PageProps<"/p
           ))}
         </ul>
       ) : (
-        <EmptyState icon={CalendarClock} title={tab === "all" ? "No appointments yet" : `No ${STUDENT_TAB_LABELS[tab].toLowerCase()} appointments`}>
+        <EmptyState icon={CalendarClock} title={EMPTY_TITLES[tab]}>
           {EMPTY[tab]}
         </EmptyState>
       )}
