@@ -1,11 +1,11 @@
 # WUPCare — Authentication and Account Provisioning
 
 Companion to `SYSTEM_SPEC.md` §8.8 and §10, and to `supabase/migrations/0003_helpers.sql`.
-Status: **plan only.** Nothing here has been applied. Auth settings are unchanged, and no accounts exist yet.
+Status updated 2026-10-20: implementation and development accounts exist; migration 0010 is applied (verified live). Current email/confirmation delivery and a complete live registration flow were not reverified by the stabilization task. Instructions below describe provisioning operations, which require authorization before live writes.
 
 ## 1. Principles
 
-- Supabase Auth, email and password. There is no public sign-up.
+- Supabase Auth, email and password. Student self-registration is gated by `STUDENT_REGISTRATION`; no public staff/admin sign-up.
 - `public.profiles` is the only source of a user's role and active status. `user_metadata` is never trusted, because users can edit it.
 - The service-role key is used only in `lib/supabase/admin.ts` (`server-only`). Each use happens after `requireRole("admin")`.
 - An inactive profile gets `null` from `private.current_user_role()`, so RLS denies it everything right away, even while its JWT is still valid.
@@ -61,7 +61,7 @@ Sign in and confirm the admin lands on `/dashboard`. Every later account is crea
 
 ## 6. Demo accounts (Phase 8)
 
-`scripts/seed-users.ts` creates `admin@wupcare.test`, `nurse@wupcare.test`, and `student@wupcare.test` (linked to `DEMO-0001`) through the same `createUser` + `app_metadata` path. The seed's inventory calls must run with a staff JWT (`request.jwt.claims`), because the inventory functions record `performed_by = auth.uid()` and check the caller's role.
+There is no checked-in `scripts/seed-users.ts`. The existing development accounts were provisioned previously; do not rerun account creation or alter them without approval. A future isolated provisioning script could create `admin@wupcare.test`, `nurse@wupcare.test`, and `student@wupcare.test` (linked to `DEMO-0001`) through the same `createUser` + `app_metadata` path. The seed's inventory calls must run with a staff JWT (`request.jwt.claims`), because the inventory functions record `performed_by = auth.uid()` and check the caller's role.
 
 ## 7. Student self-registration
 
@@ -77,15 +77,15 @@ Decided 2026-10-14: Supabase Auth only, with no third-party email service. Spec 
 
 | Part | Status |
 |---|---|
-| Migration `0010_student_self_registration.sql` | Prepared and tested offline (PGlite, 160/160). **Not applied; needs approval.** |
+| Migration `0010_student_self_registration.sql` | Applied: live migration version `20261020032859`, verified 2026-10-20. Historical offline results are separate from current reproducible tests. |
 | `/register` page and `registerStudent` action | Built. Hidden (404) unless `STUDENT_REGISTRATION=enabled` |
 | `/auth/confirm` route | Built. Handles both the PKCE `code` link and `token_hash` links; redirects only to same-site paths |
 | `/students/registrations` (clinic personnel) | Built. Behind the same flag; approval uses `approve_student_link()` with an inline confirmation |
 | Portal "Waiting for clinic approval" | Built |
 
 Turn the feature on in this order:
-1. Apply 0010.
-2. Regenerate `types/database.ts`.
+1. Verify 0010 is already present on the target (confirmed on the current configured project; do not reapply).
+2. Confirm the target schema matches the checked-in registration types.
 3. Change the Auth settings below.
 4. Set `STUDENT_REGISTRATION=enabled`.
 5. Test with a team-member email address.
@@ -115,3 +115,9 @@ Turn "Confirm email" back on (with SMTP) before real use.
 - Site URL and redirect URLs: include `http://localhost:3000/auth/confirm` and, later, the production `/auth/confirm`.
 - Minimum password length: 8.
 - Optional: CAPTCHA; leaked-password protection if the plan supports it.
+
+## Display-name and security follow-up (2026-10-20)
+
+Blank profile names resolve to Administrator / Nurse / Student by role. Nonblank custom names, including the known erroneous 120-character administrator name, are preserved on read. Saving an administrator display name validates controls, whitespace and 2-120 character length; authorization still uses the administrator's own session. The guarded repair proposal is in `SECURITY_REVIEW.md` and awaits approval. No Auth settings, passwords, accounts, or names were changed by stabilization.
+
+The read-only review found 13 intentional guarded definer warnings and disabled leaked-password protection. Review the owner deployment checklist before real use; schema availability alone does not establish registration or deployment readiness.

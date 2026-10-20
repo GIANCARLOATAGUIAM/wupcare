@@ -1,0 +1,4 @@
+-- Superseded 2026-10-20. The reviewed SQL is now
+-- supabase/migrations/0012_student_self_registration_v1.sql (PROPOSED ONLY,
+-- not applied). Rollback: docs/sql/student-self-registration.rollback.sql.
+-- This file intentionally contains no statements.

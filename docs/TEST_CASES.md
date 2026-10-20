@@ -2,7 +2,7 @@
 
 Test cases for the acceptance criteria in `SYSTEM_SPEC.md` §13 *(Paper §3.E)*. Each row lists the case, the expected result, the actual result, and Pass / Fail / Pending.
 
-Last full run: 2026-10-14 against the Supabase project "Research", using a production build (`next build` + `next start`).
+Historical full run (external scratchpads, not shipped as repository tests): 2026-10-14 against the Supabase project "Research", using a production build (`next build` + `next start`).
 
 ## How the tests were run
 
@@ -57,7 +57,7 @@ Automated tests drive the browser with `playwright-core`, installed outside the 
 | RPT-3 | Student clinic history report | Prints for clinic personnel; blocked for administrators | As expected | Pass |
 | RPT-4 | Totals match SQL counts | Report totals equal database counts for the same range | Visits 40, incidents 8, appointments 15, Paracetamol issued 34 match SQL | Pass |
 | RPT-5 | Dashboard counters | Match the data | Pending 3, low stock, expiring, and expired items match | Pass |
-| **REG-1** | Student self-registers (email, student number, password) | `student` profile, pending; portal shows "Waiting for clinic approval" | Database logic passes offline (PGlite). Live test needs migration 0010 and Auth settings | Pending approval |
+| **REG-1** | Student self-registers (email, student number, password) | `student` profile, pending; portal shows "Waiting for clinic approval" | Database logic passes offline (PGlite). 0010 is now applied (verified 2026-10-20); a complete live registration flow and current Auth/email settings were not reverified | Pending approval |
 | REG-2 | Pending account access | No appointments, students, or health records; cannot request even with a guessed id | Passes offline | Pending approval |
 | REG-3 | Staff approve the link | Pending list; approval links the record; student can request appointments for it only | Passes offline; UI built behind `STUDENT_REGISTRATION` | Pending approval |
 | REG-4 | Registration cannot grant staff or admin | Role from sign-up data ignored; always `student` | Passes offline and live (a role in `user_metadata` was ignored) | Pass (live part pending) |
@@ -66,7 +66,7 @@ Automated tests drive the browser with `playwright-core`, installed outside the 
 | USR-3 | Clinic personnel open `/admin/users` | Redirected to `/dashboard` | As expected | Pass |
 | **NFR-1** | Layout at 320, 360, 768, 1024, 1280px and 200% zoom | No horizontal page scroll | 0 overflow on all 34 audited pages | Pass |
 | NFR-2 | Build, lint, types | All pass | `next build` passes; lint 0 errors; `tsc` clean | Pass |
-| NFR-3 | Supabase security advisor | No critical findings | No ERROR. 12 intentional WARNs (checked SECURITY DEFINER functions) and 1 Auth WARN (leaked-password protection off) | Pass |
+| NFR-3 | Supabase security advisor | No critical findings | Historical result. Current read-only review: no ERROR, 13 intentional definer warnings and 1 leaked-password warning; see SECURITY_REVIEW.md | Pass |
 | NFR-4 | Accessibility | WCAG 2.1 AA checks pass; keyboard-only use works | axe 0 violations; skip link, focus rings, labels, error linking, mobile menu, inline confirmations verified | Pass |
 | NFR-5 | Test case document complete | This document | Complete | Pass |
 
@@ -75,3 +75,38 @@ Automated tests drive the browser with `playwright-core`, installed outside the 
 - Screen readers (NVDA, VoiceOver) were not tested with real assistive technology.
 - Session expiry, and a server action called directly by a role that should not use it. The latter is covered by `requireRole` in every action and by RLS, which was verified live.
 - The error page (no safe way to force a server error).
+
+## Repository-owned stabilization tests - 2026-10-20
+
+Follow-up administrator report suite: `tests/admin-reports.test.cjs` adds 20 tests (109 total passing). Covers Month/Year defaults and leap years, invalid/legacy URL values, automatic selection updates, all Records scopes and five RPC parameter contracts, print invocation/markup, full-width responsive markup, sidebar selection retention, Nurse regression and actual administrator DAL page guards. The proposed SQL was not executed; exact live small counts await approval/application of 0011. See `ADMIN_REPORTS.md` for the distinction between mocked application tests, live catalog inspection, and pending browser/SQL verification.
+
+Run `npm ci` then `npm test` (PowerShell may need `npm.cmd test`). No additional test dependency is required: Node's built-in test runner uses `tests/register.cjs` and the existing TypeScript compiler. No `.env.local`, scratchpad passwords, real identities, approved demo rows, or live mutation tests are used. The harness clears Supabase environment settings, blocks network fetch, and fails unmocked server/admin-client access. Fixtures use fictional IDs and `example.test`.
+
+| Coverage | Evidence |
+|---|---|
+| Display-name validation | Ordinary/Filipino names, lowercase s, Unicode spaces, trim, 2/120 boundaries, controls/invisible characters, markup rejection |
+| Fallbacks | Missing/blank names for all roles; valid custom and 120-character names retained |
+| Pagination | 0, 1, 10, 11, 25+ records; unique ties; exact-count/range query construction; invalid/out-of-range pages; URL filter retention |
+| Search and filters | Multi-page student name/college/year/status/demo filters; literal quoted punctuation; account search/status; low-stock metadata batches |
+| Access protection | Actual DAL guard redirects for all role combinations, signed-out/inactive/missing/invalid profiles; list guard before reads; account guards before mutation |
+| Account validation | Email/password/role/student-link requirements, password mismatch/reuse, self-deactivation/password protections; invalid names rejected without client access |
+| Reports and ledger | 1,201 aggregate groups despite API caps; failed batch rejects partial totals; page-two full totals/suppression/print markup; complete ledger sum |
+| Student pending request | Request disabled even when pending appointment is outside the current history page |
+
+These tests verify application behavior with mocked Supabase boundaries, not live RLS enforcement or actual browser interactions. Historical PGlite/live/browser counts above are retained as historical evidence, not rerun claims. New browser responsive/keyboard/print visual QA is pending because no browser surface was connected; server-rendered markup verifies pagination wrapping, disabled states and print-row inclusion. No deployment readiness is claimed.
+
+
+## Sensitive-action confirmation follow-up - 2026-10-20
+
+Run npm test: 125/125 pass, including 16 new isolated confirmation tests. The new hook/event harness verifies no action on Cancel, one dispatch on rapid Confirm, pending controls, errors staying open, retry/success feedback, conditional role/status confirmations, redirect propagation, account refresh, focus/Escape callbacks, mobile class contracts, unauthorized server guards and self-account UI restrictions. Existing role/account tests remain passing. No browser was connected: actual Tab trapping, full menu/portal focus behavior, screen-reader and mobile visual QA remain unverified. No live writes or new dependencies. File/action inventory and limits: CONFIRMATIONS.md.
+
+## Final QA pass - 2026-10-20
+
+`npm test`: 192/192 pass, including the new `tests/qa-regressions.test.cjs` (6 tests):
+- the auth-callback redirect stays on this site
+- impossible date-times and clock times are rejected before the database (student request, staff booking, clinic hours, visits/incidents/appointments)
+- student birth dates must be real dates
+- editing a medicine cannot create a duplicate
+- forms that share a page have unique field ids
+
+Browser testing used the clinic personnel session only; administrator and student sessions were not available. No live writes were made. See the "Final QA" entry in `DEVLOG.md` for coverage and limits.

@@ -149,7 +149,7 @@ The schema matches spec 9. Types are generated. Role routing works end to end fo
 
 ### Tasks
 1. Shared components:
-   - `DataTable`: server-side pagination, 25 rows, filters in the URL as `?q=&page=&scope=`
+   - Shared list controls: server-side pagination, 10 rows, filters in the URL as `?q=&page=&scope=`
    - `DemoBadge`, `ScopeFilter`, `PageHeader`, `EmptyState`, `StatusBadge`
 2. `/students`: search by number or name; filters for college, year, status, and scope; DEMO badge.
 3. `/students/new` and `/students/[id]/edit`: zod schema. A duplicate student number (Postgres error `23505`) becomes a field error.
@@ -341,12 +341,12 @@ The client signs off on the demo and the deployment checklist is ready. Deploy t
 
 ---
 
-## Status (2026-10-14)
+## Status (updated 2026-10-20)
 
 | Phase | Status |
 |---|---|
 | 1 Setup and authentication | Done |
-| 2 Schema and RLS | Done. Migrations 0001–0009 applied; 0010 prepared, awaiting approval |
+| 2 Schema and RLS | Done. Migrations 0001-0010 applied; 0010 verified live on 2026-10-20 |
 | 3 Students and health records | Done |
 | 4 Clinic visits | Done |
 | 5 Appointments, inventory, clinic hours | Done |
@@ -354,7 +354,7 @@ The client signs off on the demo and the deployment checklist is ready. Deploy t
 | 7 Reports and administration | Done |
 | 8A Stability and demo data | Done. Demo seed applied |
 | 8B UI polish and accessibility | Done |
-| 8C Authentication finalization and QA | Done, except the approval-dependent steps: apply 0010, Auth settings, first administrator, enable registration, live registration test |
+| 8C Authentication finalization and QA | Local implementation exists; 0010 and development accounts are present. Auth delivery/settings and a complete live registration flow remain unverified in the current stabilization run |
 
 Phase 8 was split into 8A (stability and demo data), 8B (UI and accessibility), and 8C (authentication and QA). Student registration UI (Phase 3, tasks 7–8) was finished in 8C behind `STUDENT_REGISTRATION`.
 
@@ -389,3 +389,9 @@ P1 Setup/Auth ─> P2 Schema/RLS ─> P3 Students/HR ─> P4 Visits ─> P5 Appo
 | The paper's diagrams disagree with the build | Spec 14.3 lists the manuscript updates. The researchers confirm before Phase 2. |
 | Scope creep | Everything beyond the paper is [OPT] and needs client approval |
 | Real data entered before authorization | Demo-only until the client confirms institutional approval. The README states this. |
+
+## Stabilization follow-up - 2026-10-20
+
+Local display-name fix and role fallbacks, ten-row server pagination, repository-owned isolated automated tests, and documentation cleanup implemented. Existing range queries were reused. Aggregate report totals and full print/PDF output are independent of the on-screen page. The low-stock view scans stock metadata on the server because no schema/RPC change was authorized.
+
+Read-only security review is recorded in `docs/SECURITY_REVIEW.md`: 13 intentional guarded definer functions and disabled leaked-password protection. Migration 0010 is applied; this does not verify Auth/email or production registration readiness. Deployment remains unapproved. The known administrator name correction requires explicit approval and has not been executed. New visual browser QA requires a connected browser; isolated markup tests cover footer/print states but cannot certify responsive rendering.

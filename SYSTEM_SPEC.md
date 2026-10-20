@@ -219,7 +219,7 @@ IDs: `FR-<module>-<n>`. The source tag is at the end of each line. DFD process n
   - appointments per status
 - FR-RPT-2 **Student clinic history report**: a printable summary for one student. Clinic personnel only. **[P]** §6; **[D]**
 - FR-RPT-3 Every report has a scope filter: **Real only (default), Demo only, All**. **[C]**
-- FR-RPT-3a **Administrator privacy limits [D]** (approved 2026-10-14; RA 10173): for administrators, the database widens every report range to whole calendar months. Administrators can group visits by month only. Counts from 1 to 4 are returned empty and shown as "<5". Clinic personnel get exact counts for any range. Enforced in the `report_*` functions (`supabase/migrations/0007_reports.sql`).
+- FR-RPT-3a **Administrator report limits [D]** (updated 2026-10-20): aggregate-only reports, with no individual student medical records. The admin UI selects one complete Asia/Manila month using Month/Year dropdowns and auto-updating Records scope. Monthly database restrictions and administrator RLS stay enforced. Exact aggregate counts are requested; migration `0011_exact_report_counts.sql` is **proposed, not applied**. Until approval/application, the existing database still returns null for admin counts 1–4 (shown as "<5"). Clinic personnel retain exact counts for arbitrary date ranges. See `docs/ADMIN_REPORTS.md` for the exact helper change and rollback.
 - FR-RPT-4 Reports display on screen and can be printed or saved as PDF through a print-friendly layout. This covers "display or export" *(Fig. 7, 7.4)*. **[P]**; **[R]** mechanism
 - FR-RPT-5 Dashboard counters, by role: **[R]**
   - clinic personnel: visits today, pending appointments, today's appointments, low stock, expiring soon, incidents this month
@@ -246,7 +246,7 @@ Mapped to the ISO/IEC 25010 characteristics the paper uses for evaluation *(Pape
 | NFR-4 | Accessibility | WCAG 2.1 AA contrast, keyboard navigation, visible focus. | [R] |
 | NFR-5 | Reliability / Integrity | Inventory changes are atomic. Validation runs in the browser, on the server, and as database constraints. | [R] |
 | NFR-6 | Reliability | Database backups. Use the Supabase plan's backups if available; otherwise a documented manual export. | [P] Rec 4, [?] Q-T3 |
-| NFR-7 | Performance efficiency | Lists are paginated (25 rows) and searched through indexed columns. Pages respond in under 2 seconds on normal campus internet. | [R] |
+| NFR-7 | Performance efficiency | Lists are paginated (10 rows) and searched through indexed columns. Pages respond in under 2 seconds on normal campus internet (target, not measured by the stabilization tests). | [R] |
 | NFR-8 | Security | Login required for every page except the login page. RLS on every table. The service-role key stays on the server. | [P] obj 8, [R] |
 | NFR-9 | Privacy | Data Privacy Act of 2012 (RA 10173) and university policy: least privilege, minimum data, no real data without authorization. | [P] §3.F |
 | NFR-10 | Maintainability | TypeScript strict mode, generated database types, one folder per module, minimal dependencies. | [C] |
@@ -830,15 +830,15 @@ All modules in §4 are implemented and tested (see `docs/TEST_CASES.md`). How th
 
 | Area | As built |
 |---|---|
-| Student self-registration (§8.10) | `/register`, `/auth/confirm`, and `/students/registrations` are built behind the server setting `STUDENT_REGISTRATION=enabled` (off by default). Migration 0010 is prepared and tested offline but **not applied**. Auth settings for sign-up are not changed yet. Until then, accounts are created only by administrators. |
+| Student self-registration (§8.10) | `/register`, `/auth/confirm`, and `/students/registrations` are built behind the server setting `STUDENT_REGISTRATION=enabled` (off by default). Migration 0010 is applied (live version `20261020032859`, verified 2026-10-20); the pending-registration schema and approval function exist. Registration remains controlled by `STUDENT_REGISTRATION`. Auth/email delivery settings and a complete live registration flow were not reverified in the stabilization run, so production readiness is unconfirmed. |
 | First administrator (§10.1) | `scripts/create-admin.mjs`, one-time; refuses if an administrator exists. No credentials in code. |
 | Clinic hours | Edited on `/settings/clinic-hours`; defaults Mon–Fri 08:00–17:00, 30 days ahead (Q-F5 open). |
 | Staff appointment booking | Saved directly as approved at the chosen time; clinic-hours limits apply to student requests only. |
-| Destructive actions | Deactivate account, deactivate medicine, cancel appointment, cancel request, and approve registration use an inline two-step confirmation (no modal). |
+| Sensitive actions | Shared Radix confirmation dialogs guard account access/role changes, temporary passwords, archiving, appointment decline/reschedule/cancel, medicine deactivation/stock adjustment, pending-request cancellation and registration approval. Ordinary edits stay direct. Server authorization and retention rules are unchanged; see docs/CONFIRMATIONS.md. |
 | Medicines | Starting stock is a restock transaction. The same name with the same expiry is blocked (restock instead). A different expiry is a separate row (FR-MED-9). |
 | Visits and incidents | Saved together with their medication in one database transaction. Issued medicines are corrected only by a stock adjustment. |
 | Reports | Five aggregate reports plus the student history report. Printing hides the app shell. Administrator limits per FR-RPT-3a. |
-| States | Every route group has a loading skeleton and an error panel, and there is a 404 page. Lists are paged at 25 rows; a page number past the end returns to page 1. |
+| States | Every route group has a loading skeleton and an error panel, and there is a 404 page. Lists are paged at 10 rows; a page number past the end returns to page 1 with filters retained. |
 | Accessibility | WCAG 2.1 AA checks pass (axe, keyboard, 200% zoom, 320px reflow, forced colors). Skip link, visible focus, linked field errors. |
 | Demo data | `supabase/seed.sql` (18 students, 12 medicines, ~40 visits, 15 appointments, 8 incidents) has been applied to the project. `supabase/remove-demo.sql` removes demo data only. |
 | Development accounts | `dev-admin@`, `dev-nurse@`, `dev-student@wupcare.test` exist for development and must be removed before real use (`docs/DEPLOYMENT.md`). |
@@ -848,3 +848,12 @@ Remaining limitations:
 - Leaked-password protection is off (Auth setting).
 - The service-role key must be rotated before deployment.
 - [OPT] items (CSV export, charts, calendar, audit log, vital signs) were not built.
+
+### 16.1 Stabilization contract - 2026-10-20
+
+- Display-name saves use 2-120 normalized characters; controls, invisible format characters, line/paragraph separators, and `< > { }` are rejected before whitespace normalization. Ordinary spaces are collapsed and trimmed; Filipino names and lowercase `s` are preserved. Central role fallbacks apply only to missing/blank names: admin: Administrator, clinic_staff: Nurse, student: Student. No stored-name repair runs automatically.
+- Default record-list page size is 10. Queries retain existing role guards/RLS and append an ID tie-breaker. URL navigation retains search/filters/dates; filter submission drops page. Invalid numeric syntax starts at page one; pages past the result set redirect to page one with filters. Empty lists show 0-0 of 0, with both controls disabled.
+- Coverage: personnel accounts, student accounts, clinic student records, visit log, appointment list, medicine inventory, per-medicine transaction history, incident log, and own appointment history. Existing per-student detail summaries are outside these list routes.
+- Low stock uses an ID-ordered server scan of stock metadata followed by a ten-row full-record fetch. It preserves the existing `stock_quantity <= reorder_level` rule without a database change. Other medicine flags are database filters before pagination.
+- Reports paginate aggregate groups for screen display only. Database aggregation, administrator suppression, whole-month limits, complete totals, and full authorized print/PDF output are preserved. Aggregate/ledger/account-number reads traverse API caps in bounded requests.
+- `npm test` is an offline Node runner with existing TypeScript transpilation and isolated fictional fixtures; no live writes or credentials. Catalog security review and its limits: `docs/SECURITY_REVIEW.md`. No deployment or production-registration readiness is inferred.
