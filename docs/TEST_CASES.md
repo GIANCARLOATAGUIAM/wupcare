@@ -53,7 +53,7 @@ Automated tests drive the browser with `playwright-core`, installed outside the 
 | MED-4 | Demo/real separation | Demo medicine cannot be issued to a real student, and the reverse | As expected | Pass |
 | **INC-1** | Record incidents of each type, with medication and visit link | Saved; shown in the log, student history, visit page, and medicine history | As expected | Pass |
 | **RPT-1** | Five aggregate reports with date range and scope, both roles, print | Render for both roles; print layout hides the app shell | As expected | Pass |
-| RPT-2 | Administrator report privacy | Whole months only; counts below 5 shown as "<5"; no names | As expected | Pass |
+| RPT-2 | Administrator report privacy | Whole months only; exact counts including 0–4 (client revision 2026-10-21, migration 0011); no names | Automated (mocked) | Pending 0011 |
 | RPT-3 | Student clinic history report | Prints for clinic personnel; blocked for administrators | As expected | Pass |
 | RPT-4 | Totals match SQL counts | Report totals equal database counts for the same range | Visits 40, incidents 8, appointments 15, Paracetamol issued 34 match SQL | Pass |
 | RPT-5 | Dashboard counters | Match the data | Pending 3, low stock, expiring, and expired items match | Pass |
@@ -110,3 +110,5 @@ Run npm test: 125/125 pass, including 16 new isolated confirmation tests. The ne
 - forms that share a page have unique field ids
 
 Browser testing used the clinic personnel session only; administrator and student sessions were not available. No live writes were made. See the "Final QA" entry in `DEVLOG.md` for coverage and limits.
+
+Client revisions 2026-10-21: `tests/client-revisions.test.cjs` adds 18 tests (245 total passing): exact report counts, dashboard metric definitions and transitions, sidebar live count, academic profile schema/action/gate, admin-only inventory actions and pages, nurse read-only medicine page, migration 0013 static checks, nurse booking linkage and portal visibility. See `CLIENT_REVISIONS.md`.

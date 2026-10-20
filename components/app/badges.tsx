@@ -13,9 +13,19 @@ const STATUS: Record<AppointmentStatus, { label: string; className: string }> = 
   cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground" },
 };
 
-export function AppointmentStatusBadge({ status }: { status: AppointmentStatus }) {
-  const s = STATUS[status];
-  return <Badge className={s.className}>{s.label}</Badge>;
+// Student-facing wording for the same statuses and colors. "declined" reads as
+// "Not Approved" so it is never mistaken for a cancellation.
+const STUDENT_LABELS: Partial<Record<AppointmentStatus, string>> = {
+  pending: "Pending Approval",
+  declined: "Not Approved",
+};
+
+export function appointmentStatusLabel(status: AppointmentStatus, audience: "clinic" | "student" = "clinic") {
+  return (audience === "student" ? STUDENT_LABELS[status] : undefined) ?? STATUS[status].label;
+}
+
+export function AppointmentStatusBadge({ status, audience = "clinic" }: { status: AppointmentStatus; audience?: "clinic" | "student" }) {
+  return <Badge className={STATUS[status].className}>{appointmentStatusLabel(status, audience)}</Badge>;
 }
 
 export function DemoBadge({ className }: { className?: string }) {

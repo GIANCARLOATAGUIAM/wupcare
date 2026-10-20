@@ -1,6 +1,6 @@
 # Administrator monthly report simplification — 2026-10-20
 
-Local UI implemented. **Migration 0011 is proposed, not applied.** No demo/real records, RLS, Auth settings or deployed site were changed.
+Local UI implemented. **Migration 0011 is proposed, not applied.** Update 2026-10-21: the client approved exact counts; the UI no longer shows "<5" or partial totals (a null from an unmigrated database shows as "—"). See `CLIENT_REVISIONS.md`. No demo/real records, RLS, Auth settings or deployed site were changed.
 
 ## UI and query behavior
 

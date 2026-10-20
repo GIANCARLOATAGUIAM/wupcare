@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/page-header";
+import { requireCompleteProfile } from "@/features/account/academic";
 import { requestAppointment } from "@/features/appointments/actions";
 import { RequestForm } from "@/features/appointments/components/request-form";
 import { getClinicSettings, requestLimits } from "@/features/appointments/queries";
@@ -19,6 +20,8 @@ export default async function RequestPage() {
     supabase.from("appointments").select("id", { count: "exact", head: true }).eq("status", "pending"),
   ]);
   if (!profile?.student_id || pending) redirect("/portal");
+  // Department/College and Year Level are required before requesting.
+  await requireCompleteProfile(supabase, "/portal/request");
 
   return (
     <div className="grid gap-6">
