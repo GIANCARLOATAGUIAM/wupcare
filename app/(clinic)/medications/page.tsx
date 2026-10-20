@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { pageOutOfRange, pageRange } from "@/lib/pagination";
+import { lowStockPage } from "@/features/medications/low-stock-page";
 import { Plus } from "lucide-react";
 
 import { DemoBadge, StockFlags, stockState } from "@/components/app/badges";
 import {
   FilterBar,
   FilterSelect,
-  PAGE_SIZE,
+  hrefWith,
   Pagination,
   SCOPE_OPTIONS,
   SearchInput,
@@ -50,22 +53,23 @@ export default async function MedicationsPage({ searchParams }: PageProps<"/medi
   const today = manilaToday();
   const soon = expirySoonDate();
 
-  // The inventory is small (tens of rows), so flags that compare two columns
-  // (stock vs reorder level) are filtered here rather than in SQL.
   const supabase = await createClient();
-  let query = supabase.from("medicines").select("*").order("name").order("expiration_date").limit(1000);
+  const low = flag === "low" ? await lowStockPage(supabase, page, { q, active, scope }) : null;
+  if (low && pageOutOfRange(page, low.total, low.error)) redirect(hrefWith("/medications", sp, { page: undefined }));
+  let query = supabase.from("medicines").select("*", { count: "exact" });
+  if (low) query = query.in("id", low.ids).order("id").range(0, 9);
+  else query = query.order("name").order("expiration_date").order("id").range(...pageRange(page));
   if (q) query = query.ilike("name", `%${q}%`);
   if (active === "active") query = query.eq("is_active", true);
   if (active === "inactive") query = query.eq("is_active", false);
   if (scope !== "all") query = query.eq("is_demo", scope === "demo");
-  const { data, error } = await query;
-
-  const rows = (data ?? [])
-    .map((m) => ({ ...m, state: stockState(m, today, soon) }))
-    .filter((m) =>
-      flag === "low" ? m.state.low : flag === "expiring" ? m.state.expiringSoon : flag === "expired" ? m.state.expired : true
-    );
-  const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  if (flag === "expired") query = query.lt("expiration_date", today);
+  if (flag === "expiring") query = query.gte("expiration_date", today).lte("expiration_date", soon);
+  const result = low?.error ? { data: null, count: null, error: low.error } : await query;
+  const { data, error } = result;
+  const count = low?.total ?? result.count;
+  if (pageOutOfRange(page, count, error)) redirect(hrefWith("/medications", sp, { page: undefined }));
+  const pageRows = (data ?? []).map((m) => ({ ...m, state: stockState(m, today, soon) }));
 
   return (
     <div className="grid gap-5">
@@ -131,7 +135,7 @@ export default async function MedicationsPage({ searchParams }: PageProps<"/medi
         </Table>
       )}
 
-      <Pagination path="/medications" sp={sp} page={page} total={rows.length} />
+      {!error ? <Pagination path="/medications" sp={sp} page={page} total={count ?? 0} /> : null}
     </div>
   );
 }

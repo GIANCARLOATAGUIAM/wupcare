@@ -1,3 +1,6 @@
+import { ledgerTotal } from "@/features/medications/ledger-total";
+import { redirect } from "next/navigation";
+import { pageOutOfRange, pageRange } from "@/lib/pagination";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,7 +9,7 @@ import { Pencil } from "lucide-react";
 import { ActionForm } from "@/components/app/action-form";
 import { DemoBadge, StockFlags, stockState } from "@/components/app/badges";
 import { DetailItem, TextAreaField, TextField } from "@/components/app/fields";
-import { TableEmpty, param } from "@/components/app/list-controls";
+import { Pagination, pageParam, hrefWith, TableEmpty, param } from "@/components/app/list-controls";
 import { PageHeader } from "@/components/app/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -25,23 +28,26 @@ export default async function MedicinePage({ params, searchParams }: PageProps<"
   await requireRole("clinic_staff");
   const { id } = await params;
   const sp = await searchParams;
+  const page = pageParam(sp);
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
 
   const supabase = await createClient();
-  const [{ data: m }, { data: txns }] = await Promise.all([
+  const [{ data: m }, { data: txns, count, error }] = await Promise.all([
     supabase.from("medicines").select("*, updater:profiles!medicines_updated_by_fkey(full_name)").eq("id", id).maybeSingle(),
     supabase
       .from("medication_transactions")
       .select(
-        "id, type, quantity, notes, created_at, clinic_visit_id, incident_id, performer:profiles!medication_transactions_performed_by_fkey(full_name), student:students(id, student_number, first_name, middle_name, last_name)"
+        "id, type, quantity, notes, created_at, clinic_visit_id, incident_id, performer:profiles!medication_transactions_performed_by_fkey(full_name), student:students(id, student_number, first_name, middle_name, last_name)", { count: "exact" }
       )
       .eq("medicine_id", id)
       .order("created_at", { ascending: false })
-      .limit(200),
+      .order("id")
+      .range(...pageRange(page)),
   ]);
   if (!m) notFound();
+  const total = await ledgerTotal(supabase, id);
   const state = stockState(m, manilaToday(), expirySoonDate());
-  const ledgerTotal = (txns ?? []).reduce((sum, t) => sum + t.quantity, 0);
+  if (pageOutOfRange(page, count, error)) redirect(hrefWith("/medications/" + id, sp, { page: undefined }));
 
   return (
     <div className="grid gap-5">
@@ -84,9 +90,10 @@ export default async function MedicinePage({ params, searchParams }: PageProps<"
         <Panel title="Issue to a student">
           {m.is_active && !state.expired && m.stock_quantity > 0 ? (
             <ActionForm action={issueMedicine.bind(null, id)} submitLabel="Issue">
-              <TextField name="student_number" label="Student number" required />
-              <TextField name="quantity" label={`Quantity (${m.unit})`} type="number" min={1} max={m.stock_quantity} required defaultValue="1" />
-              <TextField name="notes" label="Notes (optional)" maxLength={500} />
+              {/* Three forms on one page: each field gets its own id so labels and errors match. */}
+              <TextField id="issue-student_number" name="student_number" label="Student number" required />
+              <TextField id="issue-quantity" name="quantity" label={`Quantity (${m.unit})`} type="number" min={1} max={m.stock_quantity} required defaultValue="1" />
+              <TextField id="issue-notes" name="notes" label="Notes (optional)" maxLength={500} />
             </ActionForm>
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -97,6 +104,7 @@ export default async function MedicinePage({ params, searchParams }: PageProps<"
         <Panel title="Restock">
           <ActionForm action={restockMedicine.bind(null, id)} submitLabel="Add stock" variant="outline">
             <TextField
+              id="restock-quantity"
               name="quantity"
               label={`Quantity received (${m.unit})`}
               type="number"
@@ -104,20 +112,20 @@ export default async function MedicinePage({ params, searchParams }: PageProps<"
               required
               defaultValue={/^\d+$/.test(param(sp, "qty") ?? "") ? param(sp, "qty") : undefined}
             />
-            <TextField name="notes" label="Notes (optional)" maxLength={500} placeholder="Supplier, delivery reference" />
+            <TextField id="restock-notes" name="notes" label="Notes (optional)" maxLength={500} placeholder="Supplier, delivery reference" />
           </ActionForm>
         </Panel>
         <Panel title="Adjust stock">
-          <ActionForm action={adjustMedicine.bind(null, id)} submitLabel="Save adjustment" variant="outline">
-            <TextField name="quantity" label="Change (use − to remove)" type="number" required placeholder="-2" />
-            <TextAreaField name="reason" label="Reason" required rows={2} placeholder="Damaged, count correction, disposal of expired stock" />
+          <ActionForm action={adjustMedicine.bind(null, id)} submitLabel="Save adjustment" variant="outline" confirm={{ title: "Adjust Medicine Stock?", message: "This changes the stock balance and adds a permanent transaction with your reason. Check the quantity and sign before continuing.", confirmLabel: "Save Adjustment", cancelLabel: "Keep Stock" }}>
+            <TextField id="adjust-quantity" name="quantity" label="Change (use − to remove)" type="number" required placeholder="-2" />
+            <TextAreaField id="adjust-reason" name="reason" label="Reason" required rows={2} placeholder="Damaged, count correction, disposal of expired stock" />
           </ActionForm>
         </Panel>
       </div>
 
       <section className="grid gap-2">
         <h2 className="text-sm font-medium">Transaction history</h2>
-        <Table>
+        {error ? <p className="text-sm text-destructive">Could not load transaction history. Please reload the page.</p> : <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
@@ -159,12 +167,9 @@ export default async function MedicinePage({ params, searchParams }: PageProps<"
               <TableEmpty colSpan={5}>No transactions yet.</TableEmpty>
             )}
           </TableBody>
-        </Table>
-        {txns && txns.length < 200 && ledgerTotal !== m.stock_quantity ? (
-          <p className="text-xs text-destructive">
-            Ledger total ({ledgerTotal}) does not match stock ({m.stock_quantity}). Report this to the administrator.
-          </p>
-        ) : null}
+        </Table>}
+        {!error ? <Pagination path={"/medications/" + id} sp={sp} page={page} total={count ?? 0} /> : null}
+        {total !== null && total !== m.stock_quantity ? <p className="text-xs text-destructive">Ledger total ({total}) does not match stock ({m.stock_quantity}). Report this to the administrator.</p> : null}
       </section>
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
@@ -172,7 +177,7 @@ export default async function MedicinePage({ params, searchParams }: PageProps<"
           action={setMedicineActive.bind(null, id, !m.is_active)}
           submitLabel={m.is_active ? "Deactivate medicine" : "Reactivate medicine"}
           variant={m.is_active ? "destructive" : "outline"}
-          confirm={m.is_active ? { message: "Deactivate this medicine? It can no longer be issued until reactivated.", confirmLabel: "Yes, deactivate" } : undefined}
+          confirm={m.is_active ? { title: "Deactivate Medicine?", message: "This medicine can no longer be issued until reactivated. Its stock and transaction history are kept.", confirmLabel: "Deactivate Medicine", cancelLabel: "Keep Active", destructive: true } : undefined}
         />
         <p className="text-xs text-muted-foreground">
           {m.updater ? `Last edited by ${m.updater.full_name}, ${formatDateTime(m.updated_at)}. ` : ""}Medicines are never deleted.

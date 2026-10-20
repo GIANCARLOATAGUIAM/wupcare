@@ -28,6 +28,25 @@ const newMedicineSchema = medicineSchema.extend({
     .max(100000),
 });
 
+// Another medicine with this name (any letter case) and expiry, among records
+// of the same kind (real or demo). `exceptId` skips the medicine being edited.
+async function findDuplicate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  medicine: { name: string; expiration_date: string },
+  isDemo: boolean,
+  exceptId?: string
+) {
+  let query = supabase
+    .from("medicines")
+    .select("id")
+    .ilike("name", medicine.name.replace(/[%_\\]/g, (c) => `\\${c}`))
+    .eq("expiration_date", medicine.expiration_date)
+    .eq("is_demo", isDemo);
+  if (exceptId) query = query.neq("id", exceptId);
+  const { data } = await query.limit(1).maybeSingle();
+  return !!data;
+}
+
 function refresh(id?: string) {
   revalidatePath("/medications");
   if (id) revalidatePath(`/medications/${id}`);
@@ -45,15 +64,7 @@ export async function createMedicine(_prev: FormState, formData: FormData): Prom
 
   // Same medicine, same expiry already in the inventory: add stock to that row
   // instead of creating a duplicate (FR-MED-9).
-  const { data: existing } = await supabase
-    .from("medicines")
-    .select("id")
-    .ilike("name", medicine.name.replace(/[%_\\]/g, (c) => `\\${c}`))
-    .eq("expiration_date", medicine.expiration_date)
-    .eq("is_demo", false)
-    .limit(1)
-    .maybeSingle();
-  if (existing) {
+  if (await findDuplicate(supabase, medicine, false)) {
     return {
       error: "This medicine with the same expiration date is already in the inventory. Open it and use Restock instead.",
       fieldErrors: { name: "Already in the inventory with this expiration date." },
@@ -90,6 +101,17 @@ export async function updateMedicine(id: string, _prev: FormState, formData: For
   if (parsed.state) return parsed.state;
 
   const supabase = await createClient();
+  const { data: current } = await supabase.from("medicines").select("is_demo").eq("id", id).maybeSingle();
+  if (!current) return { error: "Medicine not found." };
+  // Renaming or re-dating must not create a second copy of another medicine.
+  if (await findDuplicate(supabase, parsed.data, current.is_demo, id)) {
+    return {
+      error: "Another medicine with this name and expiration date is already in the inventory.",
+      fieldErrors: { name: "Already in the inventory with this expiration date." },
+      values: formValues(formData),
+    };
+  }
+
   const { data, error } = await supabase.from("medicines").update(parsed.data).eq("id", id).select("id");
   if (error) return { error: dbErrorMessage(error), values: formValues(formData) };
   if (!data.length) return { error: "Medicine not found." };
