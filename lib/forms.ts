@@ -79,8 +79,25 @@ export const optionalUuid = z
 export const isoDate = (label: string) =>
   z.iso.date({ error: `Enter a valid ${label}.` });
 
+// A real 24-hour clock time ("HH:MM"); "25:99" is rejected here, not by the database.
+export function isClockTime(value: string) {
+  const m = /^(\d{2}):(\d{2})$/.exec(value);
+  return !!m && Number(m[1]) <= 23 && Number(m[2]) <= 59;
+}
+
+export const clockTime = (label = "time") =>
+  z.string().refine(isClockTime, { error: `Enter a valid ${label}.` });
+
+// <input type="datetime-local"> value: a real calendar date and clock time
+// (so 2026-02-30T10:00 or 10:75 fail with a field message, not a database error).
 export const localDateTime = (label: string) =>
-  z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, { error: `Enter a valid ${label}.` });
+  z.string().refine(
+    (v) => {
+      const [date, time] = v.split("T");
+      return v.length === 16 && z.iso.date().safeParse(date).success && isClockTime(time ?? "");
+    },
+    { error: `Enter a valid ${label}.` }
+  );
 
 export const positiveInt = (label: string) =>
   z.coerce
@@ -112,3 +129,13 @@ export function ilikeAny(columns: string[], term: string) {
   const value = term.replace(/"/g, '\\"');
   return columns.map((c) => `${c}.ilike."%${value}%"`).join(",");
 }
+
+// One or() filter per word (PostgREST ANDs repeated or() calls), so every word
+// must appear in some column: "maria cruz" matches first + last name, and
+// "santos nursing" matches a name + program. Capped at 5 words.
+export function ilikeEveryWord(columns: string[], term: string) {
+  return searchTerm(term).split(" ").filter(Boolean).slice(0, 5).map((word) => ilikeAny(columns, word));
+}
+
+// Student number, name, college, and program (clinic personnel only; RLS).
+export const STUDENT_SEARCH_COLUMNS = ["student_number", "first_name", "middle_name", "last_name", "college", "program"];

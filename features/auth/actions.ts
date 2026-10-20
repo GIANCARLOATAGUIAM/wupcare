@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { FormState } from "@/lib/forms";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -52,6 +53,18 @@ export async function logout() {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
     await supabase.auth.signOut();
+  }
+  revalidatePath("/", "layout");
+  redirect("/login");
+}
+
+// Same sign-out as `logout`, for the confirmed Log Out dialog: a failed
+// sign-out is reported instead of redirecting with the session still active.
+export async function confirmedLogout(): Promise<FormState> {
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signOut();
+    if (error) return { error: "Could not log out. Check your connection and try again." };
   }
   revalidatePath("/", "layout");
   redirect("/login");

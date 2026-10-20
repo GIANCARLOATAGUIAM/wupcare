@@ -7,6 +7,8 @@ import { isSupabaseConfigured, supabasePublishableKey, supabaseUrl } from "./env
 const PUBLIC_PATHS = ["/login", "/register", "/auth/confirm"];
 
 function isPublicPath(pathname: string) {
+  // The landing page. Exact match only, so no other route becomes public.
+  if (pathname === "/") return true;
   return PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );

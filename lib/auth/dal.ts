@@ -7,6 +7,7 @@ import { cache } from "react";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
+import { displayName } from "./display-name";
 import { isRole, ROLE_HOME, type Role } from "./roles";
 
 export type CurrentUser = {
@@ -83,7 +84,7 @@ export const getAuthState = cache(async (): Promise<AuthState> => {
     user: {
       id: profile.id,
       email,
-      fullName: profile.full_name ?? email,
+      fullName: displayName(profile.full_name, profile.role),
       role: profile.role,
     },
   };

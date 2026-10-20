@@ -1,6 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { sameOriginPath } from "@/lib/safe-redirect";
 import { createClient } from "@/lib/supabase/server";
 
 // Email confirmation callback (SYSTEM_SPEC §8.10). Supports both link styles:
@@ -8,8 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 // custom template. Only same-site paths are accepted as the next page.
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const nextParam = url.searchParams.get("next") ?? "/";
-  const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";
+  const next = sameOriginPath(url.searchParams.get("next"), url.origin);
   const supabase = await createClient();
 
   const code = url.searchParams.get("code");

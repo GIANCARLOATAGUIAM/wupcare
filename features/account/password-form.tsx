@@ -2,8 +2,8 @@
 
 import { useActionState, useEffect, useRef } from "react";
 
-import { TextField } from "@/components/app/fields";
 import { FormAlert, SubmitButton } from "@/components/app/form-status";
+import { PasswordField } from "@/features/auth/password-field";
 import { initialFormState } from "@/lib/forms";
 
 import { changePassword } from "./actions";
@@ -19,18 +19,18 @@ export function PasswordForm() {
   return (
     <form ref={ref} action={formAction} noValidate className="grid max-w-sm gap-4">
       <FormAlert state={state} />
-      <TextField name="current_password" label="Current password" type="password" autoComplete="current-password" required error={e.current_password} />
-      <TextField
+      <PasswordField name="current_password" label="Current password" autoComplete="current-password" required error={e.current_password} />
+      <PasswordField
         name="new_password"
         label="New password"
-        type="password"
         autoComplete="new-password"
         required
         minLength={8}
+        maxLength={72}
         error={e.new_password}
-        hint="At least 8 characters."
+        hint="8 to 72 characters."
       />
-      <TextField name="confirm_password" label="Confirm new password" type="password" autoComplete="new-password" required error={e.confirm_password} />
+      <PasswordField name="confirm_password" label="Confirm new password" autoComplete="new-password" required error={e.confirm_password} />
       <div>
         <SubmitButton>Change password</SubmitButton>
       </div>
