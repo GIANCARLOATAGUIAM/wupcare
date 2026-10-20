@@ -30,13 +30,16 @@ export function ClinicHoursForm({
   const days = sent ? sent.open_days.split(",").filter(Boolean).map(Number) : settings.open_days;
 
   return (
-    <form action={formAction} noValidate className="grid max-w-xl gap-5">
+    <form action={formAction} noValidate className="@container grid min-w-0 gap-6">
       <FormAlert state={state} />
       <fieldset className="grid gap-2" aria-describedby={e.open_days ? "open_days-error" : undefined}>
         <legend className="mb-1 text-sm font-medium">Open days</legend>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
+        <div className="grid grid-cols-2 gap-2 @sm:grid-cols-3 @4xl:grid-cols-7">
           {DAYS.map(([n, label]) => (
-            <label key={n} className="flex items-center gap-2 text-sm">
+            <label
+              key={n}
+              className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border bg-card px-2.5 text-sm transition-colors hover:bg-muted/50 has-checked:border-primary has-checked:bg-primary/5 has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
+            >
               <input
                 type="checkbox"
                 name="open_days"
@@ -54,7 +57,7 @@ export function ClinicHoursForm({
           </p>
         ) : null}
       </fieldset>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 @xl:grid-cols-3">
         <TextField name="open_time" label="Opens at" type="time" required defaultValue={sent?.open_time ?? settings.open_time.slice(0, 5)} error={e.open_time} />
         <TextField name="close_time" label="Closes at" type="time" required defaultValue={sent?.close_time ?? settings.close_time.slice(0, 5)} error={e.close_time} />
         <TextField

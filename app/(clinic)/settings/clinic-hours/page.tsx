@@ -24,12 +24,18 @@ export default async function ClinicHoursPage() {
         description="Students can request appointments only on open days, within these hours, and up to the set number of days ahead."
       />
       {settings ? (
-        <>
+        <section aria-labelledby="hours-heading" className="grid min-w-0 gap-6 rounded-xl border bg-card p-4 sm:p-6">
+          <div className="grid gap-1.5">
+            <h2 id="hours-heading" className="text-sm font-medium">
+              Appointment schedule
+            </h2>
+            <p className="text-sm text-muted-foreground">Changes apply to new requests. Existing appointments are not moved.</p>
+          </div>
           <ClinicHoursForm settings={settings} />
-          <p className="text-xs text-muted-foreground">
+          <p className="border-t pt-4 text-xs text-muted-foreground">
             {settings.updater ? `Last changed by ${settings.updater.full_name}, ${formatDateTime(settings.updated_at)}` : "Default hours (not changed yet)."}
           </p>
-        </>
+        </section>
       ) : (
         <p className="text-sm text-destructive">Clinic settings are missing. Contact the administrator.</p>
       )}

@@ -5,10 +5,13 @@ import { z } from "zod";
 
 import { requireRole } from "@/lib/auth/dal";
 import { dbErrorMessage } from "@/lib/db-errors";
-import { fieldErrors, formValues, type FormState } from "@/lib/forms";
+import { fieldErrors, formValues, isClockTime, type FormState } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
 
-const time = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, { error: "Enter a valid time." });
+const time = z
+  .string()
+  .regex(/^\d{2}:\d{2}(:\d{2})?$/, { error: "Enter a valid time." })
+  .refine((v) => isClockTime(v.slice(0, 5)), { error: "Enter a valid time." });
 
 const clinicHoursSchema = z
   .object({
