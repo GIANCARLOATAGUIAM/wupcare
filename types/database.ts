@@ -662,6 +662,43 @@ export type Database = {
         Args: { p_full_name: string }
         Returns: undefined
       }
+      // Proposed migration 0013 (not applied until approved).
+      appointment_summary: {
+        Args: { p_scope?: string }
+        Returns: {
+          cancelled: number
+          completed: number
+          declined: number
+          pending: number
+          scheduled: number
+          today: number
+          total: number
+        }[]
+      }
+      my_academic_profile: {
+        Args: never
+        Returns: {
+          college: string | null
+          year_level: number | null
+        }[]
+      }
+      update_my_academic_profile: {
+        Args: { p_college: string; p_year_level: number }
+        Returns: undefined
+      }
+      medicine_stock_history: {
+        Args: { p_limit?: number; p_medicine_id: string; p_offset?: number }
+        Returns: {
+          created_at: string
+          id: string
+          ledger_total: number
+          notes: string | null
+          performed_by: string | null
+          quantity: number
+          total_count: number
+          type: Database["public"]["Enums"]["med_txn_type"]
+        }[]
+      }
       account_student_numbers: {
         Args: never
         Returns: {
