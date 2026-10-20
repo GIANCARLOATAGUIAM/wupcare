@@ -25,7 +25,7 @@ export default async function CompleteProfilePage({ searchParams }: PageProps<"/
     <div className="grid gap-6">
       <PageHeader
         title="Complete Your Profile"
-        description="Add your Department/College and Year Level to continue. You need these before you can request an appointment."
+        description="Choose your College, Program and Year Level to continue. You need these before you can request an appointment."
       />
       <AcademicProfileForm current={profile} flow="complete" next={next} />
       <p className="max-w-xl text-xs text-muted-foreground">

@@ -20,7 +20,7 @@ export default async function RequestPage() {
     supabase.from("appointments").select("id", { count: "exact", head: true }).eq("status", "pending"),
   ]);
   if (!profile?.student_id || pending) redirect("/portal");
-  // Department/College and Year Level are required before requesting.
+  // College, Program and Year Level are required before requesting.
   await requireCompleteProfile(supabase, "/portal/request");
 
   return (

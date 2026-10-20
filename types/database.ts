@@ -14,6 +14,19 @@ export type Database = {
   }
   public: {
     Tables: {
+      // Proposed migration 0014: official academic catalog (read-only).
+      colleges: {
+        Row: { code: string; id: string; name: string; sort_order: number }
+        Insert: { code: string; id: string; name: string; sort_order: number }
+        Update: { code?: string; id?: string; name?: string; sort_order?: number }
+        Relationships: []
+      }
+      programs: {
+        Row: { abbreviation: string; college_id: string; id: string; name: string; sort_order: number }
+        Insert: { abbreviation: string; college_id: string; id: string; name: string; sort_order: number }
+        Update: { abbreviation?: string; college_id?: string; id?: string; name?: string; sort_order?: number }
+        Relationships: []
+      }
       appointments: {
         Row: {
           created_at: string
@@ -567,6 +580,7 @@ export type Database = {
           address: string | null
           birth_date: string | null
           college: string | null
+          college_id: string | null
           contact_number: string | null
           created_at: string
           created_by: string | null
@@ -580,6 +594,7 @@ export type Database = {
           last_name: string
           middle_name: string | null
           program: string | null
+          program_id: string | null
           sex: string | null
           status: Database["public"]["Enums"]["student_status"]
           student_number: string
@@ -591,6 +606,7 @@ export type Database = {
           address?: string | null
           birth_date?: string | null
           college?: string | null
+          college_id?: string | null
           contact_number?: string | null
           created_at?: string
           created_by?: string | null
@@ -604,6 +620,7 @@ export type Database = {
           last_name: string
           middle_name?: string | null
           program?: string | null
+          program_id?: string | null
           sex?: string | null
           status?: Database["public"]["Enums"]["student_status"]
           student_number: string
@@ -615,6 +632,7 @@ export type Database = {
           address?: string | null
           birth_date?: string | null
           college?: string | null
+          college_id?: string | null
           contact_number?: string | null
           created_at?: string
           created_by?: string | null
@@ -628,6 +646,7 @@ export type Database = {
           last_name?: string
           middle_name?: string | null
           program?: string | null
+          program_id?: string | null
           sex?: string | null
           status?: Database["public"]["Enums"]["student_status"]
           student_number?: string
@@ -675,15 +694,19 @@ export type Database = {
           total: number
         }[]
       }
+      // Migration 0014 shape (0013 returned college and year_level only).
       my_academic_profile: {
         Args: never
         Returns: {
           college: string | null
+          college_id: string | null
+          program: string | null
+          program_id: string | null
           year_level: number | null
         }[]
       }
       update_my_academic_profile: {
-        Args: { p_college: string; p_year_level: number }
+        Args: { p_college_id: string; p_program_id: string; p_year_level: number }
         Returns: undefined
       }
       medicine_stock_history: {

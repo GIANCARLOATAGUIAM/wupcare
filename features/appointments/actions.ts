@@ -43,7 +43,7 @@ export async function requestAppointment(_prev: FormState, formData: FormData): 
   }
   const academic = await myAcademicProfile(supabase);
   if (academic && !academic.complete) {
-    return { error: "Complete your Department/College and Year Level in My Account before requesting an appointment.", values: formValues(formData) };
+    return { error: "Complete your College, Program and Year Level in My Account before requesting an appointment.", values: formValues(formData) };
   }
 
   const { error } = await supabase.from("appointments").insert({ ...parsed.data, student_id: profile.student_id });

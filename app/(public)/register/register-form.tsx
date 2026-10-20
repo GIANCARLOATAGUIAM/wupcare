@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 
-import { SelectField, TextField } from "@/components/app/fields";
-import { YEAR_LEVEL_OPTIONS } from "@/features/account/academic-schema";
+import { TextField } from "@/components/app/fields";
+import { AcademicFields } from "@/features/academics/academic-fields";
 import { FormAlert, SubmitButton } from "@/components/app/form-status";
 import { PasswordField } from "@/features/auth/password-field";
 import { registerStudent } from "@/features/registration/actions";
@@ -103,29 +103,13 @@ export function RegisterForm() {
         hint="As shown on your school ID. Each Student ID can register only once."
         className="[&_input]:h-11"
       />
-      <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_9rem]">
-        <TextField
-          name="college"
-          label="Department/College"
-          required
-          maxLength={120}
-          autoComplete="organization"
-          defaultValue={v("college")}
-          error={e.college}
-          hint="For example: College of Nursing"
-          className="[&_input]:h-11"
-        />
-        <SelectField
-          name="year_level"
-          label="Year Level"
-          required
-          defaultValue={v("year_level")}
-          placeholder="Choose"
-          options={YEAR_LEVEL_OPTIONS}
-          error={e.year_level}
-          className="[&_select]:h-11"
-        />
-      </div>
+      <AcademicFields
+        key={`${v("college_id")}-${v("program_id")}-${v("year_level")}`}
+        defaults={{ college_id: v("college_id"), program_id: v("program_id"), year_level: v("year_level") }}
+        errors={e}
+        required
+        className="grid gap-5 [&_select]:h-11"
+      />
       {/* Requirements mirror registrationSchema: 8 to 72 characters. */}
       <PasswordField
         name="password"

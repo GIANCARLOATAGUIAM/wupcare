@@ -28,7 +28,7 @@ const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8")
 const PASSWORD = "Fictional-Pass-91";
 const form = (overrides = {}) => {
   const data = new FormData();
-  const fields = { first_name: "Ana", middle_name: "", last_name: "Reyes", email: "Ana.Reyes@Example.test", student_number: " wup-2026-001 ", college: " College  of Nursing ", year_level: "2", password: PASSWORD, confirm_password: PASSWORD, ...overrides };
+  const fields = { first_name: "Ana", middle_name: "", last_name: "Reyes", email: "Ana.Reyes@Example.test", student_number: " wup-2026-001 ", college_id: "con", program_id: "con-bs-nursing", year_level: "2", password: PASSWORD, confirm_password: PASSWORD, ...overrides };
   for (const [k, v] of Object.entries(fields)) data.append(k, v);
   return data;
 };
@@ -101,12 +101,12 @@ test("signUp sends only the v1 identity payload; never role, record ID or passwo
   await assert.rejects(registerStudent({}, form()), /REDIRECT:\/portal/);
   const args = signUps()[0][1];
   assert.equal(args.email, "ana.reyes@example.test");
-  assert.deepEqual(args.options.data, { wupcare_registration: "new_student_v1", student_number: "WUP-2026-001", first_name: "Ana", last_name: "Reyes", college: "College of Nursing", year_level: "2" });
+  assert.deepEqual(args.options.data, { wupcare_registration: "new_student_v1", student_number: "WUP-2026-001", first_name: "Ana", last_name: "Reyes", college_id: "con", program_id: "con-bs-nursing", year_level: "2" });
   assert.equal(JSON.stringify(args.options.data).includes(PASSWORD), false);
 
   reset({ signUp: () => ({ data: { user: { id: "fictional-new" }, session: { access_token: "x" } }, error: null }), profile: linked });
   await assert.rejects(registerStudent({}, form({ middle_name: " Santos ", role: "admin", student_id: "fictional-existing", wupcare_role: "admin" })), /REDIRECT:\/portal/);
-  assert.deepEqual(Object.keys(signUps()[0][1].options.data).sort(), ["college", "first_name", "last_name", "middle_name", "student_number", "wupcare_registration", "year_level"]);
+  assert.deepEqual(Object.keys(signUps()[0][1].options.data).sort(), ["college_id", "first_name", "last_name", "middle_name", "program_id", "student_number", "wupcare_registration", "year_level"]);
   assert.equal(signUps()[0][1].options.data.middle_name, "Santos");
 });
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { collegeField, yearLevelField } from "@/features/account/academic-schema";
+import { collegeIdField, programIdField, yearLevelField } from "@/features/account/academic-schema";
+import { programBelongsTo } from "@/features/academics/catalog";
 
 // Shared by the registration form (client checks) and registerStudent
 // (authoritative server checks). The database trigger in
@@ -69,13 +70,18 @@ export const registrationSchema = z
           .refine((v) => !v.startsWith("DEMO-"), { error: "Enter your own Student ID." })
       ),
     // Required for every new registration (client revision 2026-10-21).
-    college: collegeField,
+    college_id: collegeIdField,
+    program_id: programIdField,
     year_level: yearLevelField,
     password: z
       .string()
       .min(8, { error: "Use at least 8 characters." })
       .max(72, { error: "Use 72 characters or fewer." }),
     confirm_password: z.string(),
+  })
+  .refine((v) => programBelongsTo(v.program_id, v.college_id), {
+    path: ["program_id"],
+    error: "Choose a program from the selected college.",
   })
   .refine((v) => v.password === v.confirm_password, {
     path: ["confirm_password"],
@@ -91,7 +97,8 @@ export const REGISTRATION_FIELDS = [
   "last_name",
   "email",
   "student_number",
-  "college",
+  "college_id",
+  "program_id",
   "year_level",
   "password",
   "confirm_password",

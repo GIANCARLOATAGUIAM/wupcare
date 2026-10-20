@@ -80,7 +80,7 @@ test("account lists page personnel and students and preserve page in return link
 test("student request availability checks pending appointments outside the displayed page", async () => {
   // The dashboard owns the Request action; My Appointments pages the history.
   const page = fresh("../app/(portal)/portal/page.tsx").default;
-  client = queryClient({ profiles: [{ id: "fictional-me", student_id: "fictional-student" }], my_academic_profile: [{ college: "Fictional College", year_level: 1 }], appointments: Array.from({ length: 25 }, (_, i) => ({ ...fixture(i), student_id: "fictional-student", status: i === 0 ? "pending" : "completed" })) });
+  client = queryClient({ profiles: [{ id: "fictional-me", student_id: "fictional-student" }], my_academic_profile: [{ college_id: "con", program_id: "con-bs-nursing", year_level: 1, college: "College of Nursing", program: "Bachelor of Science in Nursing" }], appointments: Array.from({ length: 25 }, (_, i) => ({ ...fixture(i), student_id: "fictional-student", status: i === 0 ? "pending" : "completed" })) });
   const tree = await page();
   const pending = client.calls.find((c) => c.filters.some((f) => f[1] === "status" && f[2] === "pending"));
   assert.equal(pending.result, null); // HEAD count, never fetch all histories.

@@ -3,6 +3,7 @@ import { Hourglass } from "lucide-react";
 import { ActionForm } from "@/components/app/action-form";
 import { AppointmentStatusBadge } from "@/components/app/badges";
 import { EmptyState } from "@/components/app/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { cancelMyAppointment } from "@/features/appointments/actions";
 import type { Database } from "@/types/database";
 import { formatDate, formatDateTime, formatTime, toManilaInput } from "@/lib/format";
@@ -47,7 +48,9 @@ export const STATUS_NOTES: Partial<Record<Status, string>> = {
 // upper right. Pending/cancelled/declined show the preferred schedule;
 // approved/completed show the confirmed clinic schedule prominently, plus
 // the preferred one when the clinic chose a different time.
-export function StudentAppointmentCard({ appointment: a, headingLevel = "h3" }: { appointment: StudentAppointment; headingLevel?: "h2" | "h3" }) {
+// `overdue` (dashboard only): an approved appointment whose confirmed time has
+// passed without being completed. It stays approved; only a label is added.
+export function StudentAppointmentCard({ appointment: a, headingLevel = "h3", overdue = false }: { appointment: StudentAppointment; headingLevel?: "h2" | "h3"; overdue?: boolean }) {
   const Heading = headingLevel;
   const preferred = `${formatDate(a.preferred_date)}, ${formatTime(a.preferred_time)}`;
   const confirmed = a.scheduled_at && (a.status === "approved" || a.status === "completed") ? formatDateTime(a.scheduled_at) : null;
@@ -57,7 +60,10 @@ export function StudentAppointmentCard({ appointment: a, headingLevel = "h3" }: 
     <article className="grid gap-3 rounded-lg border bg-card p-3 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <Heading className="min-w-0 text-sm font-medium break-words">{a.reason}</Heading>
-        <AppointmentStatusBadge status={a.status} audience="student" />
+        <span className="inline-flex shrink-0 flex-wrap justify-end gap-1">
+          <AppointmentStatusBadge status={a.status} audience="student" />
+          {overdue ? <Badge className="bg-destructive/10 text-destructive">Overdue</Badge> : null}
+        </span>
       </div>
       <dl className="grid gap-3 text-sm sm:grid-cols-[repeat(2,minmax(0,16rem))] sm:gap-x-8">
         {confirmed ? (
@@ -67,6 +73,7 @@ export function StudentAppointmentCard({ appointment: a, headingLevel = "h3" }: 
             {a.status === "approved" && a.reschedule_count > 0 ? (
               <dd className="text-xs text-muted-foreground">Rescheduled by the clinic</dd>
             ) : null}
+            {overdue ? <dd className="text-xs text-destructive">This time has passed. Contact the clinic if you still need this appointment.</dd> : null}
           </div>
         ) : null}
         {!confirmed || changed ? (

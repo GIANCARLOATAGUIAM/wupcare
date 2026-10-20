@@ -12,7 +12,9 @@ import { useActionRunner } from "@/components/app/use-action-runner";
 import type { FormState } from "@/lib/forms";
 import type { Tables } from "@/types/database";
 
-import { STATUS_OPTIONS, YEAR_OPTIONS } from "../schema";
+import { AcademicFields } from "@/features/academics/academic-fields";
+
+import { STATUS_OPTIONS } from "../schema";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
@@ -70,9 +72,13 @@ export function StudentForm({
       </Section>
 
       <Section title="School">
-        <TextField name="college" label="College" maxLength={120} defaultValue={v("college")} error={e.college} />
-        <TextField name="program" label="Program" maxLength={120} defaultValue={v("program")} error={e.program} />
-        <SelectField name="year_level" label="Year level" defaultValue={v("year_level")} placeholder="Not specified" options={YEAR_OPTIONS} error={e.year_level} />
+        <AcademicFields
+          key={`${v("college_id")}-${v("program_id")}-${v("year_level")}`}
+          defaults={{ college_id: v("college_id"), program_id: v("program_id"), year_level: v("year_level") }}
+          errors={e}
+          legacy={{ college: student?.college_id ? null : student?.college, program: student?.program_id ? null : student?.program }}
+          className="contents"
+        />
       </Section>
 
       <Section title="Contact">

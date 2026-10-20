@@ -7,7 +7,9 @@ import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { requireCompleteProfile } from "@/features/account/academic";
 import { StudentAppointmentCard, WaitingForVerification } from "@/features/appointments/components/student-appointment-card";
+import { isOverdue } from "@/features/appointments/categories";
 import { STUDENT_APPOINTMENT_COLUMNS, linkedStudentId, upcomingFrom } from "@/features/appointments/student-portal";
+import { collectRows } from "@/lib/collect-rows";
 import { requireRole } from "@/lib/auth/dal";
 import { firstName } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -55,22 +57,28 @@ export default async function PortalDashboardPage() {
   // RLS returns only this student's appointments; the student_id filter repeats it.
   const from = upcomingFrom();
   const mine = () => supabase.from("appointments").select("id", { count: "exact", head: true }).eq("student_id", studentId);
-  const [pending, upcoming, completed, next] = await Promise.all([
+  const [pending, upcoming, completed, approved] = await Promise.all([
     mine().eq("status", "pending"),
     mine().eq("status", "approved").gte("scheduled_at", from),
     mine().eq("status", "completed"),
-    supabase
-      .from("appointments")
-      .select(STUDENT_APPOINTMENT_COLUMNS)
-      .eq("student_id", studentId)
-      .eq("status", "approved")
-      .gte("scheduled_at", from)
-      .order("scheduled_at")
-      .order("id")
-      .limit(1)
-      .maybeSingle(),
+    // Every approved appointment by status, not by date: booked by the clinic
+    // or requested by the student, upcoming or overdue. Earliest first. All
+    // rows are collected (no arbitrary limit).
+    collectRows((rangeFrom, rangeTo) =>
+      supabase
+        .from("appointments")
+        .select(STUDENT_APPOINTMENT_COLUMNS)
+        .eq("student_id", studentId)
+        .eq("status", "approved")
+        .order("scheduled_at")
+        .order("id")
+        .range(rangeFrom, rangeTo)
+    ),
   ]);
-  const failed = Boolean(pending.error || upcoming.error || completed.error || next.error);
+  const failed = Boolean(pending.error || upcoming.error || completed.error || approved.error);
+  // Request time (dynamic page), the same way the clinic appointment list does it.
+  const now = new Date();
+  const approvedRows = approved.data ?? [];
   // Same rule as before: one pending request at a time (also enforced by the database).
   const hasPending = Boolean(pending.error) || (pending.count ?? 0) > 0;
   const show = (n: number | null) => (failed ? "—" : n ?? 0);
@@ -106,22 +114,28 @@ export default async function PortalDashboardPage() {
         </div>
       </section>
 
-      <section aria-labelledby="next-heading" className="grid gap-3">
+      <section aria-labelledby="approved-heading" className="grid gap-3">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 id="next-heading" className="text-sm font-medium">
-            Next upcoming appointment
+          <h2 id="approved-heading" className="text-sm font-medium">
+            Approved Appointments{approvedRows.length ? <span className="ml-1.5 font-normal text-muted-foreground tabular">{approvedRows.length}</span> : null}
           </h2>
           <Link href="/portal/appointments" className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground hover:underline">
             All appointments
             <ChevronRight className="size-3.5" aria-hidden="true" />
           </Link>
         </div>
-        {next.data ? (
-          <StudentAppointmentCard appointment={next.data} />
-        ) : (
+        {approvedRows.length ? (
+          <ul className="grid gap-3">
+            {approvedRows.map((a) => (
+              <li key={a.id}>
+                <StudentAppointmentCard appointment={a} overdue={isOverdue(a, now.getTime())} />
+              </li>
+            ))}
+          </ul>
+        ) : approved.error ? null : (
           <EmptyState
             icon={CalendarCheck}
-            title="No upcoming appointment"
+            title="No approved appointments"
             action={
               hasPending ? (
                 <Button asChild variant="outline" size="sm">
@@ -138,7 +152,7 @@ export default async function PortalDashboardPage() {
             }
           >
             {hasPending
-              ? "Your request is waiting for the clinic. Its schedule appears here once it is approved."
+              ? "Your request is waiting for the clinic. It appears here once the clinic approves it."
               : "Request an appointment and the clinic will confirm a schedule."}
           </EmptyState>
         )}

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { COLLEGES, PROGRAMS, programBelongsTo } from "@/features/academics/catalog";
 import { optionalText, phMobile, requiredText } from "@/lib/forms";
 import { manilaToday } from "@/lib/format";
 
@@ -29,8 +30,18 @@ export const studentSchema = z.object({
     .refine((v) => v === null || (z.iso.date().safeParse(v).success && v >= "1900-01-01" && v < manilaToday()), {
       error: "Enter a birth date in the past.",
     }),
-  college: optionalText(120),
-  program: optionalText(120),
+  // Catalog IDs (optional for staff). Legacy free-text college/program
+  // columns are not written here; the database fills them from the catalog.
+  college_id: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || COLLEGES.some((c) => c.id === v), { error: "Choose a college from the list." }),
+  program_id: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || PROGRAMS.some((p) => p.id === v), { error: "Choose a program from the list." }),
   year_level: z
     .string()
     .optional()
@@ -43,6 +54,9 @@ export const studentSchema = z.object({
   guardian_relationship: optionalText(60),
   guardian_contact: phMobile,
   status: z.enum(["active", "inactive", "graduated"], { error: "Choose a status." }),
+}).refine((v) => v.program_id === null || (v.college_id !== null && programBelongsTo(v.program_id, v.college_id)), {
+  path: ["program_id"],
+  error: "Choose a program from the selected college.",
 });
 
 export const healthRecordSchema = z.object({

@@ -25,6 +25,7 @@ import { STATUS_OPTIONS, YEAR_OPTIONS } from "@/features/students/schema";
 import { requireRole } from "@/lib/auth/dal";
 import { STUDENT_SEARCH_COLUMNS, ilikeEveryWord, searchTerm } from "@/lib/forms";
 import { studentName } from "@/lib/format";
+import { academicParts } from "@/features/academics/catalog";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Students" };
@@ -41,7 +42,7 @@ export default async function StudentsPage({ searchParams }: PageProps<"/student
   const supabase = await createClient();
   let query = supabase
     .from("students")
-    .select("id, student_number, first_name, middle_name, last_name, college, program, year_level, status, is_demo", { count: "exact" })
+    .select("id, student_number, first_name, middle_name, last_name, college, program, college_id, program_id, year_level, status, is_demo", { count: "exact" })
     .order("last_name")
     .order("first_name")
     .order("id")
@@ -106,7 +107,7 @@ export default async function StudentsPage({ searchParams }: PageProps<"/student
                     </div>
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground md:table-cell">
-                    {[s.college, s.program].filter(Boolean).join(" · ") || "—"}
+                    {academicParts(s, true).parts.join(" · ") || "—"}
                   </TableCell>
                   <TableCell className="hidden tabular sm:table-cell">{s.year_level ?? "—"}</TableCell>
                 </TableRow>

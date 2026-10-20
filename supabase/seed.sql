@@ -13,8 +13,10 @@
 --     student has any activity yet. To rebuild it, run remove-demo.sql first.
 --
 -- Stock changes go through the inventory functions, so stock always equals
--- the ledger. They run as an existing active clinic staff account (preferably
--- nurse@wupcare.test); the seed stops if there is none.
+-- the ledger. Clinical activity runs as an existing active clinic staff
+-- account (preferably nurse@wupcare.test); starting stock is recorded by an
+-- active administrator (restocking is Administrator-only since 0013). The
+-- seed stops if either account is missing.
 --
 -- Run as a single transaction, for example in the Supabase SQL editor.
 
@@ -107,12 +109,28 @@ where h.student_id = s.id
 -- ---------------------------------------------------------------------------
 -- 3. Medicines (12) with starting stock recorded as restock transactions.
 --    One low-stock item, one expiring soon, one expired (SYSTEM_SPEC §11).
+--    Since migration 0013 the inventory is managed by Administrators, so this
+--    block acts as an active administrator and then returns to clinic staff.
 -- ---------------------------------------------------------------------------
 do $$
 declare
   r record;
   v_id uuid;
+  v_staff uuid := (select auth.uid());
 begin
+  perform set_config(
+    'request.jwt.claims',
+    json_build_object(
+      'sub',
+      (select p.id from public.profiles p where p.role = 'admin' and p.is_active order by p.created_at limit 1),
+      'role', 'authenticated'
+    )::text,
+    true
+  );
+  if (select private.current_user_role()) is distinct from 'admin' then
+    raise exception 'The demo seed needs an active administrator account to record starting stock. Create one first.';
+  end if;
+
   for r in
     select * from (values
       ('Paracetamol 500mg',              'tablet',   50, 10,  365),
@@ -141,6 +159,9 @@ begin
   update public.medication_transactions t
   set created_at = now() - interval '100 days'
   where t.created_at = now() and t.type = 'restock' and t.notes = 'Demo starting stock';
+
+  -- Back to clinic staff for the clinical activity below.
+  perform set_config('request.jwt.claims', json_build_object('sub', v_staff, 'role', 'authenticated')::text, true);
 end $$;
 
 -- ---------------------------------------------------------------------------

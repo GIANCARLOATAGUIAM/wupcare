@@ -11,9 +11,10 @@ import { createClient } from "@/lib/supabase/server";
 import { safePortalNext } from "./academic";
 import { academicSchema } from "./academic-schema";
 
-// Students save ONLY their own Department/College and Year Level, through
-// update_my_academic_profile (migration 0013). The function finds the record
+// Students save ONLY their own College, Program and Year Level, through
+// update_my_academic_profile (migration 0014). The function finds the record
 // from the session; no record ID, Student ID or role is sent from the browser.
+// Only catalog IDs are sent; the database checks the program's college.
 export async function saveAcademicProfile(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireRole("student");
   const parsed = parseForm(academicSchema, formData);
@@ -21,7 +22,8 @@ export async function saveAcademicProfile(_prev: FormState, formData: FormData):
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_my_academic_profile", {
-    p_college: parsed.data.college,
+    p_college_id: parsed.data.college_id,
+    p_program_id: parsed.data.program_id,
     p_year_level: Number(parsed.data.year_level),
   });
   if (error) {
@@ -32,5 +34,5 @@ export async function saveAcademicProfile(_prev: FormState, formData: FormData):
   revalidatePath("/portal", "layout");
   // Complete Your Profile continues to the page the student was going to.
   if (formData.get("flow") === "complete") redirect(safePortalNext(formData.get("next")));
-  return { ok: true, message: "Academic details saved.", values: { college: parsed.data.college, year_level: parsed.data.year_level } };
+  return { ok: true, message: "Academic details saved.", values: { college_id: parsed.data.college_id, program_id: parsed.data.program_id, year_level: parsed.data.year_level } };
 }

@@ -138,38 +138,41 @@ test("sidebar pending badge is re-read after navigation (layouts do not re-rende
 
 // ------------------------------------------------------------------ Phase 3
 
-test("academic schema: Department/College and Year Level are required and controlled", () => {
+test("academic schema: College, Program and Year Level are required and catalog-controlled", () => {
   const { academicSchema } = fresh("../features/account/academic-schema.ts");
-  assert.deepEqual(academicSchema.parse({ college: "  College   of Nursing ", year_level: "3" }), { college: "College of Nursing", year_level: "3" });
-  for (const bad of [{}, { college: "", year_level: "1" }, { college: "X", year_level: "1" }, { college: "12", year_level: "1" }, { college: "<b>x</b>", year_level: "1" },
-    { college: "College​", year_level: "1" }, { college: "C".repeat(121), year_level: "1" }, { college: "Nursing", year_level: "" }, { college: "Nursing", year_level: "7" }, { college: "Nursing", year_level: "0" }]) {
+  assert.deepEqual(academicSchema.parse({ college_id: "cect", program_id: "cect-bs-information-technology", year_level: "3" }), { college_id: "cect", program_id: "cect-bs-information-technology", year_level: "3" });
+  for (const bad of [{}, { college_id: "", program_id: "", year_level: "1" }, { college_id: "cect", program_id: "", year_level: "1" }, { college_id: "cect", program_id: "con-bs-nursing", year_level: "1" },
+    { college_id: "College of Nursing", program_id: "con-bs-nursing", year_level: "1" }, { college_id: "con", program_id: "con-bs-nursing", year_level: "7" }, { college_id: "con", program_id: "con-bs-nursing", year_level: "" }]) {
     assert.equal(academicSchema.safeParse(bad).success, false, JSON.stringify(bad));
   }
   const { registrationSchema } = fresh("../features/registration/schema.ts");
   const base = { first_name: "Ana", middle_name: "", last_name: "Reyes", email: "ana@example.test", student_number: "WUP-1", password: "Fictional-Pass-11", confirm_password: "Fictional-Pass-11" };
-  assert.equal(registrationSchema.safeParse(base).success, false); // new registrations must include both
-  assert.equal(registrationSchema.safeParse({ ...base, college: "College of Nursing", year_level: "1" }).success, true);
+  assert.equal(registrationSchema.safeParse(base).success, false); // new registrations must include all three
+  assert.equal(registrationSchema.safeParse({ ...base, college_id: "con", program_id: "con-bs-nursing", year_level: "1" }).success, true);
+  assert.equal(registrationSchema.safeParse({ ...base, college_id: "cas", program_id: "con-bs-nursing", year_level: "1" }).success, false);
 });
 
-test("academic save: student only, sends only the two fields, never a record ID or Student ID", async () => {
+test("academic save: student only, sends only catalog ids and year, never a record ID or Student ID", async () => {
   const { saveAcademicProfile } = fresh("../features/account/academic-actions.ts");
   const calls = [];
   client = { rpc: async (name, args) => { calls.push([name, args]); return { error: null }; } };
   role = "student";
-  const ok = await saveAcademicProfile({}, form({ college: " College of Nursing ", year_level: "2", student_id: "fictional-other", student_number: "X-1", flow: "settings" }));
+  const ok = await saveAcademicProfile({}, form({ college_id: "con", program_id: "con-bs-nursing", year_level: "2", student_id: "fictional-other", student_number: "X-1", college: "Injected", flow: "settings" }));
   assert.equal(ok.ok, true);
-  assert.deepEqual(calls, [["update_my_academic_profile", { p_college: "College of Nursing", p_year_level: 2 }]]);
+  assert.deepEqual(calls, [["update_my_academic_profile", { p_college_id: "con", p_program_id: "con-bs-nursing", p_year_level: 2 }]]);
 
   calls.length = 0;
-  await assert.rejects(saveAcademicProfile({}, form({ college: "Nursing", year_level: "2", flow: "complete", next: "/portal/request" })), /REDIRECT:\/portal\/request$/);
-  await assert.rejects(saveAcademicProfile({}, form({ college: "Nursing", year_level: "2", flow: "complete", next: "https://evil.example" })), /REDIRECT:\/portal$/);
-  const invalid = await saveAcademicProfile({}, form({ college: "", year_level: "9" }));
-  assert.ok(invalid.fieldErrors.college && invalid.fieldErrors.year_level);
+  await assert.rejects(saveAcademicProfile({}, form({ college_id: "con", program_id: "con-bs-nursing", year_level: "2", flow: "complete", next: "/portal/request" })), /REDIRECT:\/portal\/request$/);
+  await assert.rejects(saveAcademicProfile({}, form({ college_id: "con", program_id: "con-bs-nursing", year_level: "2", flow: "complete", next: "https://evil.example" })), /REDIRECT:\/portal$/);
+  const invalid = await saveAcademicProfile({}, form({ college_id: "", program_id: "", year_level: "9" }));
+  assert.ok(invalid.fieldErrors.college_id && invalid.fieldErrors.program_id && invalid.fieldErrors.year_level);
+  const mismatch = await saveAcademicProfile({}, form({ college_id: "cas", program_id: "con-bs-nursing", year_level: "1" }));
+  assert.match(mismatch.fieldErrors.program_id, /selected college/);
   assert.equal(calls.length, 2);
 
   for (const r of ["admin", "clinic_staff"]) {
     role = r;
-    await assert.rejects(saveAcademicProfile({}, form({ college: "Nursing", year_level: "2" })), /denied/);
+    await assert.rejects(saveAcademicProfile({}, form({ college_id: "con", program_id: "con-bs-nursing", year_level: "2" })), /denied/);
   }
 });
 
@@ -177,19 +180,19 @@ test("incomplete students are sent to Complete Your Profile and cannot request a
   role = "student";
   const setup = (academic) => (client = queryClient({ profiles: [{ id: "fictional-me", student_id: "student-mine" }], appointments: [], my_academic_profile: academic, clinic_settings: [] }));
   for (const [file, next] of [["../app/(portal)/portal/page.tsx", "%2Fportal"], ["../app/(portal)/portal/appointments/page.tsx", "%2Fportal%2Fappointments"], ["../app/(portal)/portal/request/page.tsx", "%2Fportal%2Frequest"]]) {
-    setup([{ college: null, year_level: 2 }]);
+    setup([{ college_id: "con", program_id: null, year_level: 2 }]);
     await assert.rejects(fresh(file).default({ searchParams: Promise.resolve({}) }), new RegExp(`REDIRECT:/portal/complete-profile\\?next=${next}$`), file);
   }
-  setup([{ college: "Nursing", year_level: null }]);
+  setup([{ college_id: "con", program_id: "con-bs-nursing", year_level: null }]);
   const { requestAppointment } = fresh("../features/appointments/actions.ts");
   const state = await requestAppointment({}, form({ preferred_date: "2099-01-05", preferred_time: "09:00", reason: "Checkup" }));
-  assert.match(state.error, /Department\/College and Year Level/);
+  assert.match(state.error, /College, Program and Year Level/);
   assert.equal(client.calls.some((c) => c.table === "appointments"), false);
 
   // Complete profile page: complete -> continue; incomplete -> form.
-  setup([{ college: "Nursing", year_level: 3 }]);
+  setup([{ college_id: "con", program_id: "con-bs-nursing", year_level: 1, college: "College of Nursing", program: "Bachelor of Science in Nursing" }]);
   await assert.rejects(fresh("../app/(portal)/portal/complete-profile/page.tsx").default({ searchParams: Promise.resolve({ next: "/portal/appointments" }) }), /REDIRECT:\/portal\/appointments$/);
-  setup([{ college: null, year_level: null }]);
+  setup([{ college_id: null, program_id: null, year_level: null, college: "Old free text", program: null }]);
   const tree = await fresh("../app/(portal)/portal/complete-profile/page.tsx").default({ searchParams: Promise.resolve({ next: "//evil.example" }) });
   const formNode = find(tree, (n) => n.type?.name === "AcademicProfileForm");
   assert.equal(formNode.props.flow, "complete");
@@ -334,7 +337,7 @@ test("student portal shows a staff-booked appointment under Upcoming; another st
   const row = (id, student_id, extra = {}) => ({ id, student_id, status: "approved", scheduled_at: FUTURE, preferred_date: "2099-01-15", preferred_time: "09:00", reason: "Booked by clinic", staff_remarks: null, reschedule_count: 0, created_at: "2026-10-20T00:00:00Z", requested_by: "fictional-nurse", ...extra });
   client = queryClient({
     profiles: [{ id: "fictional-me", student_id: "student-a" }],
-    my_academic_profile: [{ college: "Nursing", year_level: 1 }],
+    my_academic_profile: [{ college_id: "con", program_id: "con-bs-nursing", year_level: 1, college: "College of Nursing", program: "Bachelor of Science in Nursing" }],
     appointments: [row("mine", "student-a"), row("theirs", "student-b")],
   });
   const tree = await fresh("../app/(portal)/portal/appointments/page.tsx").default({ searchParams: Promise.resolve({ status: "upcoming" }) });
@@ -346,7 +349,7 @@ test("student portal shows a staff-booked appointment under Upcoming; another st
   // Rescheduled by the nurse: the portal reads the stored schedule; no cached copy.
   client = queryClient({
     profiles: [{ id: "fictional-me", student_id: "student-a" }],
-    my_academic_profile: [{ college: "Nursing", year_level: 1 }],
+    my_academic_profile: [{ college_id: "con", program_id: "con-bs-nursing", year_level: 1, college: "College of Nursing", program: "Bachelor of Science in Nursing" }],
     appointments: [row("mine", "student-a", { scheduled_at: "2099-01-16T02:00:00.000Z", reschedule_count: 1 })],
   });
   const after = await fresh("../app/(portal)/portal/appointments/page.tsx").default({ searchParams: Promise.resolve({}) });

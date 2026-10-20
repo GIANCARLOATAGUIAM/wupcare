@@ -29,7 +29,7 @@ export async function searchStudents(q: string, limit = 10) {
   const supabase = await createClient();
   let query = supabase
     .from("students")
-    .select("id, student_number, first_name, middle_name, last_name, is_demo, status, college")
+    .select("id, student_number, first_name, middle_name, last_name, is_demo, status, college, college_id")
     .order("last_name")
     .order("id")
     .limit(limit);

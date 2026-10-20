@@ -10,6 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 
 import { studentName } from "@/lib/format";
 
+import { collegeById } from "@/features/academics/catalog";
+
 import { searchStudents } from "./queries";
 import { healthRecordSchema, studentSchema } from "./schema";
 
@@ -115,6 +117,6 @@ export async function suggestStudents(q: string): Promise<StudentSuggestion[]> {
     name: studentName(s),
     status: s.status,
     is_demo: s.is_demo,
-    college: s.college,
+    college: collegeById(s.college_id)?.code ?? s.college,
   }));
 }

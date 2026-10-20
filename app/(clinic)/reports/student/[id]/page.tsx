@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getHealthRecord, getStudent } from "@/features/students/queries";
 import { requireRole } from "@/lib/auth/dal";
 import { formatDate, formatDateTime, formatTime, studentName } from "@/lib/format";
+import { AcademicLine } from "@/features/academics/academic-line";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Student clinic history" };
@@ -54,7 +55,7 @@ export default async function StudentHistoryReport({ params }: PageProps<"/repor
           </h1>
           <p className="text-sm text-muted-foreground">
             <span className="font-mono text-xs">{student.student_number}</span>
-            {[student.college, student.program, student.year_level ? `Year ${student.year_level}` : null].filter(Boolean).map((x) => ` · ${x}`)}
+            <AcademicLine student={student} />
           </p>
           <p className="text-xs text-muted-foreground">
             Prepared by {user.fullName} on {formatDateTime(new Date())}. Confidential health information.
