@@ -12,8 +12,8 @@ import { requireRole } from "@/lib/auth/dal";
 import { formatDateTime } from "@/lib/format";
 
 // Administrator report pages, one per sidebar link. Same data and table as
-// /reports; aggregate only, one Manila calendar month. Exact small counts
-// require approval/application of migration 0011; nulls are never guessed.
+// /reports; aggregate only, one Manila calendar month, exact counts
+// (migration 0011). Nulls are never guessed.
 const PAGES: Record<ReportKey, { title: string; description: string }> = {
   visits: { title: "Clinic Visits", description: "Number of clinic visits per month." },
   concerns: { title: "Health Concerns", description: "Clinic visits grouped by health concern." },

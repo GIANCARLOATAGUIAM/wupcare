@@ -9,8 +9,8 @@ import { adminReportFilters } from "./admin-month";
 // Shared by /reports (clinic personnel, tabs) and /reports/[report]
 // (administrator, sidebar pages). FR-RPT-1..4: aggregate counts only, from the
 // report_* database functions. For administrators the database widens the
-// range to whole months and hides counts below 5 (FR-RPT-3a); null counts are
-// shown as "<5".
+// range to whole months. Counts are exact for every role (client revision
+// 2026-10-21, migration 0011); there is no small-count suppression.
 
 export const REPORTS = {
   visits: "Clinic visits",

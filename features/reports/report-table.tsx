@@ -29,9 +29,12 @@ export function ReportTable({
   const page = pageParam(sp);
   const { pages } = pageInfo(page, rows.length);
   if (!failed && page > pages) redirect(hrefWith(path, sp, { page: undefined }));
-  const hasHidden = rows.some((r) => r.count === null);
+  // Counts are exact for every role (migration 0011). A null can only come
+  // from a database that still has the old small-count rule; it is shown as
+  // unavailable, never guessed, and the total is not shown as a number.
+  const unavailable = rows.some((r) => r.count === null);
   const total = rows.reduce((sum, r) => sum + (r.count ?? 0), 0);
-  const showCount = (n: number | null) => (n === null ? "<5" : n.toLocaleString("en-PH"));
+  const showCount = (n: number | null) => (n === null ? "—" : n.toLocaleString("en-PH"));
 
   return (
     <section className="grid w-full min-w-0 gap-2">
@@ -62,7 +65,7 @@ export function ReportTable({
                 {report !== "medications" ? (
                   <TableRow className="bg-muted/40 font-medium">
                     <TableCell>Total</TableCell>
-                    <TableCell className="text-right tabular">{hasHidden ? `${total.toLocaleString("en-PH")}+` : total.toLocaleString("en-PH")}</TableCell>
+                    <TableCell className="text-right tabular">{unavailable ? "—" : total.toLocaleString("en-PH")}</TableCell>
                   </TableRow>
                 ) : null}
               </>
@@ -73,8 +76,8 @@ export function ReportTable({
         </Table>
       )}
       {!failed ? <Pagination path={path} sp={sp} page={page} total={rows.length} /> : null}
-      {hasHidden && report !== "medications" ? (
-        <p className="text-xs text-muted-foreground">The total excludes groups shown as &lt;5.</p>
+      {unavailable ? (
+        <p className="text-xs text-destructive">Some counts are unavailable because the database update for exact counts is not installed yet.</p>
       ) : null}
     </section>
   );
