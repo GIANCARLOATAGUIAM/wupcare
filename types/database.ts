@@ -657,6 +657,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      // Pending approval: docs/sql/update-own-display-name.sql (not installed).
+      update_own_display_name: {
+        Args: { p_full_name: string }
+        Returns: undefined
+      }
       account_student_numbers: {
         Args: never
         Returns: {
@@ -664,13 +669,13 @@ export type Database = {
           student_number: string
         }[]
       }
-      approve_student_link: {
-        Args: { p_profile_id: string; p_student_id: string }
-        Returns: undefined
-      }
       adjust_medication: {
         Args: { p_medicine_id: string; p_quantity: number; p_reason: string }
         Returns: number
+      }
+      approve_student_link: {
+        Args: { p_profile_id: string; p_student_id: string }
+        Returns: undefined
       }
       create_incident_with_medications: {
         Args: { p_incident: Json; p_items?: Json }
@@ -734,6 +739,11 @@ export type Database = {
           period: string
           visit_count: number
         }[]
+      }
+      // Added by docs/sql/student-self-registration.draft.sql (not yet applied).
+      registration_student_id_available: {
+        Args: { p_student_number: string }
+        Returns: boolean
       }
       restock_medication: {
         Args: { p_medicine_id: string; p_notes?: string; p_quantity: number }

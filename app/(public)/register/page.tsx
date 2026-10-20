@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { Brand } from "@/components/app/brand";
-import { Disclaimer } from "@/components/app/disclaimer";
+import { AuthHeading, AuthShell } from "@/features/auth/auth-shell";
 import { getAuthState } from "@/lib/auth/dal";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { studentRegistrationEnabled } from "@/lib/features";
@@ -20,25 +19,24 @@ export default async function RegisterPage() {
   if (state.status === "ok") redirect(ROLE_HOME[state.user.role]);
 
   return (
-    <main className="flex min-h-dvh flex-col px-4 py-8 sm:px-8">
-      <Brand />
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-7 py-10">
-        <div className="grid gap-1.5">
-          <h1 className="text-2xl font-semibold tracking-tight">Create student account</h1>
-          <p className="text-sm text-muted-foreground">
-            For enrolled students. After you register, the clinic checks your student record before you can request
-            appointments.
-          </p>
-        </div>
+    <AuthShell>
+      <div className="grid gap-7">
+        <AuthHeading
+          title="Create Student Account"
+          description="Register to access WUPCare student services."
+        />
+        <p className="-mt-3 rounded-lg bg-secondary px-3 py-2.5 text-xs leading-relaxed text-secondary-foreground">
+          For enrolled students only. Use your own name and Student ID as they appear on your school records. The
+          clinic may verify your details at your first visit.
+        </p>
         <RegisterForm />
-        <p className="text-sm text-muted-foreground">
+        <p className="border-t pt-5 text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="text-primary hover:underline">
-            Sign in
+          <Link href="/login" className="font-medium text-primary hover:underline">
+            Login
           </Link>
         </p>
       </div>
-      <Disclaimer className="mx-auto w-full max-w-sm" />
-    </main>
+    </AuthShell>
   );
 }
