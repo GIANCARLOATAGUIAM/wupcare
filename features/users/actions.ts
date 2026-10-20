@@ -66,7 +66,8 @@ export async function createUser(_prev: FormState, formData: FormData): Promise<
     };
   }
 
-  revalidatePath("/admin/users");
+  // Covers the split lists and detail pages (/admin/users/personnel|students/...).
+  revalidatePath("/admin/users", "layout");
   redirect(`/admin/users/${data.user.id}`);
 }
 
@@ -94,7 +95,8 @@ export async function updateUser(id: string, _prev: FormState, formData: FormDat
   if (error) return { error: dbErrorMessage(error), values: formValues(formData) };
   if (!data.length) return { error: "User not found." };
 
-  revalidatePath("/admin/users");
+  // Covers the split lists and detail pages (/admin/users/personnel|students/...).
+  revalidatePath("/admin/users", "layout");
   revalidatePath(`/admin/users/${id}`);
   return { ok: true, message: "Account saved." };
 }
@@ -113,7 +115,8 @@ export async function setUserActive(id: string, active: boolean): Promise<FormSt
   const { error: banError } = await createAdminClient().auth.admin.updateUserById(id, {
     ban_duration: active ? "none" : "876000h",
   });
-  revalidatePath("/admin/users");
+  // Covers the split lists and detail pages (/admin/users/personnel|students/...).
+  revalidatePath("/admin/users", "layout");
   revalidatePath(`/admin/users/${id}`);
   if (banError) {
     console.error("[users] ban update failed:", banError.message);
