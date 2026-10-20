@@ -30,9 +30,11 @@ test("report loader retrieves all authorized aggregate groups beyond 1000", asyn
 });
 test("report page two keeps full totals and all rows for print/PDF", () => {
   const { ReportTable } = fresh("../features/reports/report-table.tsx");
-  const rows = Array.from({ length: 25 }, (_, i) => ({ label: `Fictional ${i}`, count: i === 0 ? null : 2 }));
+  const rows = Array.from({ length: 25 }, (_, i) => ({ label: `Fictional ${i}`, count: i < 5 ? i : 2 }));
   const html = renderToStaticMarkup(React.createElement(ReportTable, { report: "visits", title: "Visits", subtitle: "Demo", rows, header: ["Date", "Visits"], failed: false, sp: { page: "2", scope: "demo" }, path: "/reports" }));
-  assert.match(html, /48\+/); // all 25 groups, suppressed values excluded
+  assert.match(html, />50<\/td>/); // exact total of all 25 groups: 0+1+2+3+4 + 20*2
+  for (const n of [0, 1, 2, 3, 4]) assert.match(html, new RegExp(`Fictional ${n}</td><td[^>]*>${n}</td>`)); // exact small counts
+  assert.doesNotMatch(html, /&lt;5|<5|\d\+</);
   assert.equal((html.match(/hidden print:table-row/g) ?? []).length, 15);
   assert.equal((html.match(/<td[^>]*>Fictional /g) ?? []).length, 25);
   assert.match(html, /Showing 11–20 of 25 records/);

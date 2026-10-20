@@ -41,7 +41,13 @@ const mine = [
 // Another student's rows: must never be counted or listed.
 const others = [appt(50, "pending", { student_id: "student-other" }), appt(51, "completed", { student_id: "student-other" }), appt(52, "approved", { student_id: "student-other", scheduled_at: "2097-01-01T00:00:00Z" })];
 const setup = (rows = [...mine, ...others], studentId = "student-mine") =>
-  (client = queryClient({ profiles: [{ id: "fictional-me", student_id: studentId, requested_student_number: "FICTION-1" }], appointments: rows }));
+  (client = queryClient({
+    profiles: [{ id: "fictional-me", student_id: studentId, requested_student_number: "FICTION-1" }],
+    appointments: rows,
+    my_academic_profile: academic,
+  }));
+// Own academic fields as returned by my_academic_profile (0013). Complete by default.
+let academic = [{ college: "Fictional College", year_level: 2 }];
 
 test("student navigation: Dashboard, My Appointments, Request Appointment; account via profile card", () => {
   const { navForRole, accountHrefForRole } = fresh("../components/app/nav.ts");
@@ -158,7 +164,8 @@ test("student account shows profile details and password change, with no editing
   assert.ok(find(tree, (n) => n.type?.name === "PasswordForm"));
   assert.ok(find(tree, (n) => n.type?.name === "DisplayNameForm"));
   assert.equal(find(tree, (n) => n.type === "form"), null); // no record editing form
-  assert.deepEqual(client.calls.map((c) => c.table), ["profiles"]);
+  assert.deepEqual(client.calls.map((c) => c.table), ["profiles", "my_academic_profile"]);
+  assert.ok(find(tree, (n) => n.type?.name === "AcademicProfileForm"));
 });
 
 test("cards: reason is the title, status at the right, no repeated date heading", () => {
@@ -194,4 +201,31 @@ test("cards: confirmed schedule is prominent; the preferred one appears only whe
   const declined = JSON.stringify(StudentAppointmentCard({ appointment: appt(4, "declined", { scheduled_at: FUTURE }) }));
   assert.match(declined, /Preferred schedule/);
   assert.doesNotMatch(declined, /Clinic schedule/);
+});
+
+test("status wording: students see Not Approved vs Cancelled; the clinic keeps its labels", () => {
+  const { appointmentStatusLabel } = fresh("../components/app/badges.tsx");
+  const { StudentAppointmentCard } = fresh("../features/appointments/components/student-appointment-card.tsx");
+  const { STUDENT_TAB_LABELS } = fresh("../features/appointments/student-portal.ts");
+  const statuses = ["pending", "approved", "completed", "declined", "cancelled"];
+  assert.deepEqual(statuses.map((s) => appointmentStatusLabel(s, "student")), ["Pending Approval", "Approved", "Completed", "Not Approved", "Cancelled"]);
+  assert.deepEqual(statuses.map((s) => appointmentStatusLabel(s)), ["Pending", "Approved", "Completed", "Declined", "Cancelled"]);
+  assert.equal(STUDENT_TAB_LABELS.pending, "Pending Approval");
+  assert.equal(STUDENT_TAB_LABELS.closed, "Cancelled / Not Approved");
+
+  const card = (status, extra) => StudentAppointmentCard({ appointment: appt(1, status, extra) });
+  const declined = card("declined", { staff_remarks: "Clinic closed that day." });
+  assert.equal(find(declined, (n) => n.type?.name === "AppointmentStatusBadge").props.audience, "student");
+  const declinedText = JSON.stringify(declined);
+  assert.match(declinedText, /The clinic did not approve this request/);
+  assert.match(declinedText, /Reason from the clinic: .*Clinic closed that day\./);
+  assert.doesNotMatch(declinedText, /will no longer proceed|Clinic remarks/);
+
+  const cancelledText = JSON.stringify(card("cancelled"));
+  assert.match(cancelledText, /cancelled and will no longer proceed/);
+  assert.doesNotMatch(cancelledText, /did not approve|Reason from the clinic/);
+
+  for (const status of ["pending", "approved", "completed"]) {
+    assert.doesNotMatch(JSON.stringify(card(status, { scheduled_at: status === "pending" ? null : FUTURE })), /did not approve|will no longer proceed/, status);
+  }
 });

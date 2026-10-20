@@ -36,8 +36,9 @@ test("Sign Out: the shell renders the one confirmation alone, outside the menu a
 
 test("dashboards use container-width grids with two metric columns on phones", () => {
   const staff = read("app/(clinic)/dashboard/page.tsx");
-  assert.match(staff, /@container grid gap-3[\s\S]*grid grid-cols-2 gap-2 sm:gap-3 @md:grid-cols-3 @4xl:grid-cols-6/);
-  assert.match(staff, /grid-cols-2 gap-2 sm:gap-3 @lg:grid-cols-3 @4xl:grid-cols-5/);
+  assert.match(staff, /@container grid gap-3[\s\S]*grid grid-cols-2 gap-2 sm:gap-3 @md:grid-cols-3 @4xl:grid-cols-5/);
+  assert.match(staff, /grid grid-cols-2 gap-2 sm:gap-3 @md:grid-cols-4/); // nurse appointment summary
+  assert.match(staff, /grid-cols-2 gap-2 sm:gap-3 @lg:grid-cols-3 @4xl:grid-cols-5/); // admin appointment summary
   assert.doesNotMatch(staff, /(?<![@\w])(md:grid-cols-4|xl:grid-cols-6)/); // device breakpoints replaced
   const student = read("app/(portal)/portal/page.tsx");
   assert.match(student, /grid grid-cols-3 gap-2 sm:gap-3/); // never a single tall stack

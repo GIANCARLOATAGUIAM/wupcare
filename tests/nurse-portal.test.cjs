@@ -23,7 +23,7 @@ test("clinic personnel sidebar is grouped, without Registrations or Account item
   const hrefs = navForRole("clinic_staff").flatMap((s) => s.items.map((i) => i.href));
   assert.ok(!hrefs.includes("/account") && !hrefs.includes("/students/registrations"));
   // Admin navigation unchanged (student navigation: tests/student-portal.test.cjs).
-  assert.deepEqual(navForRole("admin").map((s) => s.label), [undefined, "User Management", "Clinic Reports"]);
+  assert.deepEqual(navForRole("admin").map((s) => s.label), [undefined, "User Management", "Inventory", "Clinic Reports"]);
 });
 
 test("one account menu for every role at the bottom of the sidebar", () => {
