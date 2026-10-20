@@ -1,0 +1,99 @@
+{
+  "draft_sha256": "a66055af0a3d58e4c5245596054c51abdf5fc529f72fe01b71a93230ea48a354",
+  "runtime": "PostgreSQL 17.6 + real Supabase Auth v2.197.0",
+  "local_only": true,
+  "results": [
+    {
+      "name": "migration refuses pre-existing canonical ID collisions without partial DDL",
+      "status": "PASS"
+    },
+    {
+      "name": "migration preserves every baseline public row and all RLS policies",
+      "status": "PASS"
+    },
+    {
+      "name": "real Auth signup atomically creates user, identity, student, empty health record and linked profile",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate exact, case-variant and trimmed Student IDs roll back the Auth signup",
+      "status": "PASS"
+    },
+    {
+      "name": "duplicate email cannot create extra profile/student/health rows",
+      "status": "PASS"
+    },
+    {
+      "name": "post-commit session failure retains a complete account that can recover through password login",
+      "status": "PASS"
+    },
+    {
+      "name": "invalid and hostile metadata cannot choose account role, student UUID or audit identity",
+      "status": "PASS"
+    },
+    {
+      "name": "health failure rolls back Auth user, identity and all application inserts",
+      "status": "PASS"
+    },
+    {
+      "name": "profile failure rolls back Auth user, identity and all application inserts",
+      "status": "PASS"
+    },
+    {
+      "name": "audit failure rolls back Auth user, identity and all application inserts",
+      "status": "PASS"
+    },
+    {
+      "name": "two overlapping Auth registrations produce exactly one canonical Student ID and no loser orphans",
+      "status": "PASS"
+    },
+    {
+      "name": "anonymous availability RPC returns only a boolean; direct records and private trigger stay inaccessible",
+      "status": "PASS"
+    },
+    {
+      "name": "new Student can immediately request and read own appointment under existing RLS",
+      "status": "PASS"
+    },
+    {
+      "name": "other Students cannot read/modify appointments, link records, self-promote, or access clinical tables",
+      "status": "PASS"
+    },
+    {
+      "name": "Nurses share new records and Admin account listing retains restricted clinical access",
+      "status": "PASS"
+    },
+    {
+      "name": "Admin/Nurse provisioning and existing linked/pending accounts remain compatible",
+      "status": "PASS"
+    },
+    {
+      "name": "deactivation denies the Nurse clinical access and preserves records for another Nurse",
+      "status": "PASS"
+    },
+    {
+      "name": "uncovered Unicode format controls cannot enter Student IDs via direct Auth signup",
+      "status": "PASS"
+    },
+    {
+      "name": "invisible or blank names cannot enter student records via direct Auth signup",
+      "status": "PASS"
+    },
+    {
+      "name": "unknown version markers cannot silently bypass direct-registration validation",
+      "status": "PASS"
+    },
+    {
+      "name": "availability RPC rejects non-allowlisted Student IDs without revealing existence",
+      "status": "PASS"
+    },
+    {
+      "name": "legacy pending-account payload is closed for new real Auth signups",
+      "status": "PASS"
+    },
+    {
+      "name": "no SMTP message was attempted by the isolated Auth workflow",
+      "status": "PASS"
+    }
+  ]
+}
