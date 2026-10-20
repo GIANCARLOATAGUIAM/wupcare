@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronDown, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Role } from "@/lib/auth/roles";
+import { pendingAppointmentCount } from "@/features/appointments/live-counts";
 import { cn } from "@/lib/utils";
 
 import { AccountMenu } from "./account-menu";
@@ -45,6 +46,8 @@ export function ClinicShell({
   // Desktop collapse preference. Styling follows html[data-sidebar] via CSS
   // (no flash); React only needs it for the toggle label and tooltips.
   const collapsed = useSyncExternalStore(subscribeSidebar, sidebarSnapshot, sidebarServerSnapshot);
+  const liveCounts = useLiveCounts(user.role, counts);
+  useRefreshOnReturn();
 
   return (
     <TooltipProvider>
@@ -74,7 +77,7 @@ export function ClinicShell({
             <PanelLeftClose className="size-3.5 rail-collapsed:hidden" aria-hidden="true" />
             <PanelLeftOpen className="hidden size-3.5 rail-collapsed:block" aria-hidden="true" />
           </button>
-          <SidebarContents user={user} counts={counts} onLogout={() => setLoggingOut("desktop")} profileRef={profileRef} tooltips={collapsed} />
+          <SidebarContents user={user} counts={liveCounts} onLogout={() => setLoggingOut("desktop")} profileRef={profileRef} tooltips={collapsed} />
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -95,7 +98,7 @@ export function ClinicShell({
                 </SheetDescription>
                 <SidebarContents
                   user={user}
-                  counts={counts}
+                  counts={liveCounts}
                   onNavigate={() => setOpen(false)}
                   onLogout={() => {
                     setOpen(false);
@@ -282,3 +285,43 @@ function SidebarContents({
   );
 }
 
+
+// Counts in the sidebar stay current: the layout that supplies them renders
+// only on a full page load, so clinic personnel re-read the pending count
+// after every navigation (one HEAD count query).
+function useLiveCounts(role: Role, initial: ShellCounts) {
+  const pathname = usePathname();
+  const [fresh, setFresh] = useState<ShellCounts | null>(null);
+  useEffect(() => {
+    if (role !== "clinic_staff") return;
+    let current = true;
+    pendingAppointmentCount().then(
+      (n) => {
+        if (current && n !== null) setFresh({ pendingAppointments: n });
+      },
+      () => {}
+    );
+    return () => {
+      current = false;
+    };
+  }, [role, pathname]);
+  return fresh ?? initial;
+}
+
+// Coming back to a tab that was hidden for a while re-fetches the current
+// page and layout, so dashboards and lists show changes made elsewhere
+// (another account, another device). Client state and form input are kept.
+const RETURN_REFRESH_MS = 30_000;
+
+function useRefreshOnReturn() {
+  const router = useRouter();
+  useEffect(() => {
+    let hiddenAt = 0;
+    const onChange = () => {
+      if (document.visibilityState === "hidden") hiddenAt = Date.now();
+      else if (hiddenAt && Date.now() - hiddenAt >= RETURN_REFRESH_MS) router.refresh();
+    };
+    document.addEventListener("visibilitychange", onChange);
+    return () => document.removeEventListener("visibilitychange", onChange);
+  }, [router]);
+}

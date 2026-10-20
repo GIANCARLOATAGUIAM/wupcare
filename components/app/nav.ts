@@ -70,7 +70,8 @@ const CLINIC_STAFF_NAV: NavSection[] = [
   },
 ];
 
-// Administrator: accounts and aggregate reports only (no clinical records).
+// Administrator: accounts, medicine inventory, and aggregate reports (no
+// clinical records). Inventory management moved here on 2026-10-21.
 // The account page is reached from the profile card at the bottom of the sidebar.
 const ADMIN_NAV: NavSection[] = [
   { items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard }] },
@@ -81,6 +82,7 @@ const ADMIN_NAV: NavSection[] = [
       { label: "Student Accounts", href: "/admin/users/students", icon: GraduationCap },
     ],
   },
+  { label: "Inventory", items: [{ label: "Medicine Inventory", href: "/medications", icon: Pill }] },
   {
     label: "Clinic Reports",
     items: [

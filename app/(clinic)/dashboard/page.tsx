@@ -3,10 +3,13 @@ import Link from "next/link";
 import {
   CalendarCheck,
   CalendarClock,
+  CalendarDays,
   ChevronRight,
+  CircleCheck,
   Clock,
   PackageCheck,
   PackageMinus,
+  PackageX,
   ShieldCheck,
   Stethoscope,
   TriangleAlert,
@@ -100,9 +103,15 @@ async function ClinicStaffDashboard() {
   const soon = expirySoonDate();
   const registration = studentRegistrationEnabled();
 
-  const [visitsToday, pending, todayAppts, incidentsMonth, meds, registrations] = await Promise.all([
+  // Appointment counters use the same filters as the appointment lists they
+  // link to (all records, demo included). Clinic visits are separate records.
+  const appts = () => supabase.from("appointments").select("id", { count: "exact", head: true });
+  const [visitsToday, pending, scheduled, completed, totalAppts, todayAppts, incidentsMonth, meds, registrations] = await Promise.all([
     supabase.from("clinic_visits").select("id", { count: "exact", head: true }).gte("visit_at", dayStart).lt("visit_at", dayEnd),
-    supabase.from("appointments").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    appts().eq("status", "pending"),
+    appts().eq("status", "approved"),
+    appts().eq("status", "completed"),
+    appts(),
     supabase
       .from("appointments")
       .select("id, scheduled_at, reason, students(first_name, middle_name, last_name, is_demo)")
@@ -118,10 +127,7 @@ async function ClinicStaffDashboard() {
       : Promise.resolve({ count: null }),
   ]);
 
-  const active = meds.data ?? [];
-  const low = active.filter((m) => m.stock_quantity <= m.reorder_level);
-  const expiring = active.filter((m) => m.expiration_date >= today && m.expiration_date <= soon);
-  const expired = active.filter((m) => m.expiration_date < today);
+  const { low, expiring, expired } = inventoryAlerts(meds.data ?? [], today, soon);
   const attention = [
     ...expired.map((m) => ({ ...m, note: "Expired" })),
     ...expiring.map((m) => ({ ...m, note: "Expiring soon" })),
@@ -151,13 +157,24 @@ async function ClinicStaffDashboard() {
         <h2 id="today-heading" className="text-sm font-medium">
           Today at the clinic
         </h2>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 @md:grid-cols-3 @4xl:grid-cols-6">
-          <Stat label="Visits today" value={visitsToday.count ?? 0} href={`/visits?from=${today}&to=${today}`} icon={Stethoscope} />
-          <Stat label="Pending requests" value={pending.count ?? 0} href="/appointments/pending" tone={pending.count ? "warning" : undefined} icon={CalendarClock} />
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 @md:grid-cols-3 @4xl:grid-cols-5">
+          <Stat label="Clinic visits today" value={visitsToday.count ?? 0} href={`/visits?from=${today}&to=${today}`} icon={Stethoscope} />
           <Stat label="Appointments today" value={todayAppts.data?.length ?? 0} href="/appointments/scheduled?when=today" icon={CalendarCheck} />
           <Stat label="Low stock" value={low.length} href="/medications?flag=low" tone={low.length ? "warning" : undefined} icon={PackageMinus} />
           <Stat label="Expiring in 30 days" value={expiring.length} href="/medications?flag=expiring" tone={expiring.length ? "warning" : undefined} icon={Clock} />
           <Stat label="Incidents this month" value={incidentsMonth.count ?? 0} href={`/incidents?from=${monthStart(today)}`} icon={TriangleAlert} />
+        </div>
+      </section>
+
+      <section aria-labelledby="appointments-summary-heading" className="@container grid gap-3">
+        <h2 id="appointments-summary-heading" className="text-sm font-medium">
+          Appointments <span className="font-normal text-muted-foreground">· all records</span>
+        </h2>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 @md:grid-cols-4">
+          <Stat label="Pending requests" value={count(pending)} href="/appointments/pending" tone={pending.count ? "warning" : undefined} icon={CalendarClock} />
+          <Stat label="Scheduled (approved)" value={count(scheduled)} href="/appointments/scheduled" icon={CalendarCheck} />
+          <Stat label="Completed" value={count(completed)} href="/appointments/history?status=completed" icon={CircleCheck} />
+          <Stat label="Total appointments" value={count(totalAppts)} href="/appointments" icon={CalendarDays} />
         </div>
       </section>
 
@@ -217,44 +234,68 @@ async function ClinicStaffDashboard() {
   );
 }
 
-// FR-RPT-5, administrator: aggregate counters only (real records, this month).
+// FR-RPT-5, administrator: aggregate counters only, real records. Appointment
+// counts are current totals per status (appointment_summary, migration 0013);
+// visits and incidents are this month's report totals (exact, migration 0011).
+// No student names or clinical details.
 async function AdminDashboard() {
   const supabase = await createClient();
   const today = manilaToday();
+  const soon = expirySoonDate();
   const args = { p_from: monthStart(today), p_to: today, p_scope: "real" };
 
-  const [visits, incidents, appointments, profiles] = await Promise.all([
+  const [summary, visits, incidents, meds, profiles] = await Promise.all([
+    supabase.rpc("appointment_summary", { p_scope: "real" }),
     supabase.rpc("report_visits", { ...args, p_period: "month" }),
     supabase.rpc("report_incidents", args),
-    supabase.rpc("report_appointments", args),
+    supabase.from("medicines").select("id, stock_quantity, reorder_level, expiration_date").eq("is_active", true).eq("is_demo", false),
     supabase.from("profiles").select("role").eq("is_active", true),
   ]);
 
-  const show = (n: number | null | undefined) => (n === null ? "<5" : String(n ?? 0));
-  const sum = (rows: { n: number | null }[]) => {
-    const hidden = rows.some((r) => r.n === null);
-    const total = rows.reduce((s, r) => s + (r.n ?? 0), 0);
-    return rows.length === 0 ? "0" : hidden ? (total ? `${total}+` : "<5") : String(total);
-  };
+  // Exact numbers only. A missing value (failed query, or a database that
+  // still withholds small counts) is shown as "—", never guessed.
+  const show = (n: number | null | undefined, failed = false) => (failed || n === null ? "—" : String(n ?? 0));
+  const sum = (rows: (number | null)[], failed: boolean) =>
+    failed || rows.some((n) => n === null) ? "—" : String(rows.reduce<number>((t, n) => t + (n ?? 0), 0));
+  const a = summary.error ? undefined : summary.data?.[0];
+  const noSummary = Boolean(summary.error);
+  const { low, expiring, expired } = inventoryAlerts(meds.data ?? [], today, soon);
   const usersByRole = ROLES.map((r) => ({ role: r, count: (profiles.data ?? []).filter((p) => p.role === r).length }));
 
   return (
     <div className="grid gap-6">
+      <section aria-labelledby="admin-appointments-heading" className="@container grid gap-3">
+        <h2 id="admin-appointments-heading" className="text-sm font-medium">
+          Appointments <span className="font-normal text-muted-foreground">· current totals, real records</span>
+        </h2>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 @lg:grid-cols-3 @4xl:grid-cols-5">
+          <Stat label="Pending requests" value={show(a?.pending, noSummary)} href="/reports/appointments" icon={CalendarClock} tone={a?.pending ? "warning" : undefined} />
+          <Stat label="Scheduled (approved)" value={show(a?.scheduled, noSummary)} href="/reports/appointments" icon={CalendarCheck} />
+          <Stat label="Appointments today" value={show(a?.today, noSummary)} href="/reports/appointments" icon={CalendarDays} />
+          <Stat label="Completed" value={show(a?.completed, noSummary)} href="/reports/appointments" icon={CircleCheck} />
+          <Stat label="Total appointments" value={show(a?.total, noSummary)} href="/reports/appointments" icon={CalendarDays} />
+        </div>
+        {noSummary ? <p className="text-xs text-destructive">Appointment totals are unavailable until database update 0013 is installed.</p> : null}
+      </section>
+
       <section aria-labelledby="month-heading" className="@container grid gap-3">
         <h2 id="month-heading" className="text-sm font-medium">
           This month <span className="font-normal text-muted-foreground">· real records</span>
         </h2>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 @lg:grid-cols-3 @4xl:grid-cols-5">
-          <Stat label="Clinic visits" value={show(visits.data?.[0]?.visit_count)} href="/reports/visits" />
-          <Stat label="Health incidents" value={sum((incidents.data ?? []).map((r) => ({ n: r.incident_count })))} href="/reports/incidents" />
-          {(["pending", "approved", "completed"] as const).map((s) => (
-            <Stat
-              key={s}
-              label={`Appointments ${s}`}
-              value={show((appointments.data ?? []).find((r) => r.status === s)?.appointment_count ?? 0)}
-              href="/reports/appointments"
-            />
-          ))}
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 @lg:grid-cols-4">
+          <Stat label="Clinic visits" value={show(visits.data?.length ? visits.data[0].visit_count : 0, Boolean(visits.error))} href="/reports/visits" icon={Stethoscope} />
+          <Stat label="Health incidents" value={sum((incidents.data ?? []).map((r) => r.incident_count), Boolean(incidents.error))} href="/reports/incidents" icon={TriangleAlert} />
+        </div>
+      </section>
+
+      <section aria-labelledby="inventory-heading" className="@container grid gap-3">
+        <h2 id="inventory-heading" className="text-sm font-medium">
+          Medicine inventory <span className="font-normal text-muted-foreground">· active, real records</span>
+        </h2>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 @lg:grid-cols-3">
+          <Stat label="Low stock" value={show(low.length, Boolean(meds.error))} href="/medications?flag=low&scope=real" tone={low.length ? "warning" : undefined} icon={PackageMinus} />
+          <Stat label="Expiring in 30 days" value={show(expiring.length, Boolean(meds.error))} href="/medications?flag=expiring&scope=real" tone={expiring.length ? "warning" : undefined} icon={Clock} />
+          <Stat label="Expired" value={show(expired.length, Boolean(meds.error))} href="/medications?flag=expired&scope=real" tone={expired.length ? "danger" : undefined} icon={PackageX} />
         </div>
       </section>
 
@@ -271,9 +312,20 @@ async function AdminDashboard() {
 
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden="true" />
-        Administrators see summary counts only, and counts below 5 are shown as &lt;5. Individual student health records are
-        visible to clinic personnel.
+        Administrators see summary counts only. Individual student health records are visible to clinic personnel.
       </p>
     </div>
   );
 }
+
+// Active medicines that need attention. Shared by both dashboards so their
+// counts follow the same rules as the inventory filters.
+function inventoryAlerts<T extends { stock_quantity: number; reorder_level: number; expiration_date: string }>(meds: T[], today: string, soon: string) {
+  return {
+    low: meds.filter((m) => m.stock_quantity <= m.reorder_level),
+    expiring: meds.filter((m) => m.expiration_date >= today && m.expiration_date <= soon),
+    expired: meds.filter((m) => m.expiration_date < today),
+  };
+}
+
+const count = (r: { count: number | null; error?: unknown }) => (r.error ? "—" : (r.count ?? 0));
