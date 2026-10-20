@@ -7,14 +7,16 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/dal";
 import { dbErrorMessage, isUniqueViolation } from "@/lib/db-errors";
 import { fromManilaInput } from "@/lib/format";
-import { formValues, isoDate, localDateTime, optionalText, parseForm, requiredText, uuid, type FormState } from "@/lib/forms";
+import { clockTime, formValues, isoDate, localDateTime, optionalText, parseForm, requiredText, uuid, type FormState } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
+
+import { detailHref, safeBackHref } from "./categories";
 
 const ONE_PENDING = "appointments_one_pending_per_student";
 
 const requestSchema = z.object({
   preferred_date: isoDate("date"),
-  preferred_time: z.string().regex(/^\d{2}:\d{2}$/, { error: "Enter a valid time." }),
+  preferred_time: clockTime(),
   reason: requiredText("Reason", 2000),
 });
 
@@ -72,7 +74,7 @@ export async function cancelMyAppointment(id: string): Promise<FormState> {
 const bookSchema = z.object({
   student_id: uuid("student"),
   preferred_date: isoDate("date"),
-  preferred_time: z.string().regex(/^\d{2}:\d{2}$/, { error: "Enter a valid time." }),
+  preferred_time: clockTime(),
   reason: requiredText("Reason", 2000),
   staff_remarks: optionalText(2000),
 });
@@ -97,7 +99,7 @@ export async function bookAppointment(_prev: FormState, formData: FormData): Pro
   if (error) return { error: dbErrorMessage(error), values: formValues(formData) };
 
   refresh();
-  redirect(`/appointments/${data.id}`);
+  redirect(detailHref(data.id, "book"));
 }
 
 const scheduleSchema = z.object({ scheduled_at: localDateTime("date and time"), staff_remarks: optionalText(2000) });
@@ -107,8 +109,12 @@ const remarkOptional = z.object({ staff_remarks: optionalText(2000) });
 
 type Update = { status?: "approved" | "declined" | "cancelled" | "completed"; scheduled_at?: string; staff_remarks?: string | null };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // FR-APT-3..5, DFD 4.2-4.4. The database enforces the allowed status
 // changes, counts reschedules, and records who handled the appointment.
+// On success it reopens the detail page with the outcome (which list now
+// holds the record) and the list the nurse came from (?back, validated).
 export async function updateAppointmentStatus(
   id: string,
   intent: "approve" | "decline" | "reschedule" | "cancel" | "complete",
@@ -116,32 +122,27 @@ export async function updateAppointmentStatus(
   formData: FormData
 ): Promise<FormState> {
   await requireRole("clinic_staff");
+  if (!UUID.test(id)) return { error: "Appointment not found." };
 
   let update: Update;
-  let message: string;
   if (intent === "approve") {
     const p = parseForm(scheduleSchema, formData);
     if (p.state) return p.state;
     update = { status: "approved", scheduled_at: fromManilaInput(p.data.scheduled_at), ...(p.data.staff_remarks ? { staff_remarks: p.data.staff_remarks } : {}) };
-    message = "Appointment approved.";
   } else if (intent === "decline") {
     const p = parseForm(remarkRequired, formData);
     if (p.state) return p.state;
     update = { status: "declined", staff_remarks: p.data.staff_remarks };
-    message = "Request declined.";
   } else if (intent === "reschedule") {
     const p = parseForm(rescheduleSchema, formData);
     if (p.state) return p.state;
     update = { scheduled_at: fromManilaInput(p.data.scheduled_at), staff_remarks: p.data.staff_remarks };
-    message = "Appointment rescheduled.";
   } else if (intent === "cancel") {
     const p = parseForm(remarkOptional, formData);
     if (p.state) return p.state;
     update = { status: "cancelled", ...(p.data.staff_remarks ? { staff_remarks: p.data.staff_remarks } : {}) };
-    message = "Appointment cancelled.";
   } else {
     update = { status: "completed" };
-    message = "Marked as completed.";
   }
 
   const supabase = await createClient();
@@ -150,5 +151,5 @@ export async function updateAppointmentStatus(
   if (!data.length) return { error: "Appointment not found." };
 
   refresh(id);
-  return { ok: true, message };
+  redirect(detailHref(id, intent, safeBackHref(formData.get("back"))));
 }
