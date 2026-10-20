@@ -5,6 +5,7 @@ import { CalendarCheck, CalendarPlus, ChevronRight, CircleCheck, Hourglass, type
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
+import { requireCompleteProfile } from "@/features/account/academic";
 import { StudentAppointmentCard, WaitingForVerification } from "@/features/appointments/components/student-appointment-card";
 import { STUDENT_APPOINTMENT_COLUMNS, linkedStudentId, upcomingFrom } from "@/features/appointments/student-portal";
 import { requireRole } from "@/lib/auth/dal";
@@ -48,6 +49,8 @@ export default async function PortalDashboardPage() {
       </div>
     );
   }
+
+  await requireCompleteProfile(supabase, "/portal");
 
   // RLS returns only this student's appointments; the student_id filter repeats it.
   const from = upcomingFrom();

@@ -4,6 +4,8 @@ import { DetailItem } from "@/components/app/fields";
 import { PageHeader } from "@/components/app/page-header";
 import { PasswordForm } from "@/features/account/password-form";
 import { DisplayNameForm } from "@/features/account/display-name-form";
+import { myAcademicProfile } from "@/features/account/academic";
+import { AcademicProfileForm } from "@/features/account/academic-form";
 import { requireRole } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,6 +22,7 @@ export default async function PortalAccountPage() {
     .select("requested_student_number, student_id")
     .eq("id", user.id)
     .maybeSingle();
+  const academic = profile?.student_id ? await myAcademicProfile(supabase) : null;
 
   return (
     <div className="grid gap-6">
@@ -46,6 +49,18 @@ export default async function PortalAccountPage() {
           </p>
         </div>
       </section>
+
+      {academic ? (
+        <section aria-labelledby="academic-heading" className="grid gap-4 border-b pb-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10">
+          <div className="grid content-start gap-1">
+            <h2 id="academic-heading" className="text-sm font-medium">
+              Academic details
+            </h2>
+            <p className="text-sm text-muted-foreground">Required for appointment requests.</p>
+          </div>
+          <AcademicProfileForm current={academic} flow="settings" />
+        </section>
+      ) : null}
 
       <section aria-labelledby="password-heading" className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10">
         <div className="grid content-start gap-1">

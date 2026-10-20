@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { collegeField, yearLevelField } from "@/features/account/academic-schema";
+
 // Shared by the registration form (client checks) and registerStudent
 // (authoritative server checks). The database trigger in
 // docs/sql/student-self-registration.draft.sql applies the same Student ID
@@ -66,6 +68,9 @@ export const registrationSchema = z
           })
           .refine((v) => !v.startsWith("DEMO-"), { error: "Enter your own Student ID." })
       ),
+    // Required for every new registration (client revision 2026-10-21).
+    college: collegeField,
+    year_level: yearLevelField,
     password: z
       .string()
       .min(8, { error: "Use at least 8 characters." })
@@ -86,6 +91,8 @@ export const REGISTRATION_FIELDS = [
   "last_name",
   "email",
   "student_number",
+  "college",
+  "year_level",
   "password",
   "confirm_password",
 ] as const;

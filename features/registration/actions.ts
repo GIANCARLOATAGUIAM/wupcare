@@ -95,6 +95,9 @@ export async function registerStudent(_prev: FormState, formData: FormData): Pro
         first_name: input.first_name,
         ...(input.middle_name ? { middle_name: input.middle_name } : {}),
         last_name: input.last_name,
+        // Stored on the new student record by the 0013 trigger.
+        college: input.college,
+        year_level: input.year_level,
       },
       // Used only while Supabase "Confirm email" is still on.
       emailRedirectTo: `${origin}/auth/confirm?next=/portal`,
