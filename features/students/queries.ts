@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
-import { ilikeAny, searchTerm } from "@/lib/forms";
+import { STUDENT_SEARCH_COLUMNS, ilikeEveryWord, searchTerm } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
 
 export const getStudent = cache(async (id: string) => {
@@ -27,11 +27,13 @@ export async function searchStudents(q: string, limit = 10) {
   const term = searchTerm(q);
   if (!term) return [];
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("students")
     .select("id, student_number, first_name, middle_name, last_name, is_demo, status, college")
-    .or(ilikeAny(["student_number", "first_name", "last_name"], term))
     .order("last_name")
+    .order("id")
     .limit(limit);
+  for (const words of ilikeEveryWord(STUDENT_SEARCH_COLUMNS, term)) query = query.or(words);
+  const { data } = await query;
   return data ?? [];
 }

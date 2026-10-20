@@ -76,11 +76,12 @@ export default async function RegistrationsPage() {
                   action={approveRegistration.bind(null, p.id)}
                   submitLabel="Approve and link"
                   confirm={{
+                    title: "Approve Student Link?",
                     message: "Link this account to the student record? The student will see their own appointments.",
                     confirmLabel: "Yes, approve",
                   }}
                 >
-                  <TextField name="student_number" label="Student number to link" required defaultValue={p.requested_student_number ?? ""} />
+                  <TextField id={`link-${p.id}`} name="student_number" label="Student number to link" required defaultValue={p.requested_student_number ?? ""} />
                 </ActionForm>
               </li>
             );

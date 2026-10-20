@@ -25,7 +25,8 @@ export const studentSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v ? v : null))
-    .refine((v) => v === null || (/^\d{4}-\d{2}-\d{2}$/.test(v) && v >= "1900-01-01" && v < manilaToday()), {
+    // A real calendar date (2001-02-30 fails here, not in the database).
+    .refine((v) => v === null || (z.iso.date().safeParse(v).success && v >= "1900-01-01" && v < manilaToday()), {
       error: "Enter a birth date in the past.",
     }),
   college: optionalText(120),

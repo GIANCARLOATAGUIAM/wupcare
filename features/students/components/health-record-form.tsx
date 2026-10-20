@@ -26,7 +26,7 @@ export function HealthRecordForm({
     state.values?.[key] ?? (record[key] == null ? "" : String(record[key]));
 
   return (
-    <form action={formAction} noValidate className="grid gap-6">
+    <form action={formAction} noValidate className="grid max-w-4xl gap-6">
       <FormAlert state={state} />
 
       <fieldset className="grid gap-4 rounded-lg border bg-card p-4 md:grid-cols-2">

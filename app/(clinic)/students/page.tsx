@@ -1,3 +1,4 @@
+import { pageOutOfRange } from "@/lib/pagination";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -7,7 +8,6 @@ import { DemoBadge, StudentStatusBadge } from "@/components/app/badges";
 import {
   FilterBar,
   FilterSelect,
-  FilterText,
   PAGE_SIZE,
   Pagination,
   SCOPE_OPTIONS,
@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { STATUS_OPTIONS, YEAR_OPTIONS } from "@/features/students/schema";
 import { requireRole } from "@/lib/auth/dal";
-import { ilikeAny, searchTerm } from "@/lib/forms";
+import { STUDENT_SEARCH_COLUMNS, ilikeEveryWord, searchTerm } from "@/lib/forms";
 import { studentName } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,7 +33,6 @@ export default async function StudentsPage({ searchParams }: PageProps<"/student
   await requireRole("clinic_staff");
   const sp = await searchParams;
   const q = searchTerm(param(sp, "q"));
-  const college = searchTerm(param(sp, "college"));
   const year = param(sp, "year");
   const status = param(sp, "status");
   const scope = scopeParam(sp);
@@ -45,18 +44,18 @@ export default async function StudentsPage({ searchParams }: PageProps<"/student
     .select("id, student_number, first_name, middle_name, last_name, college, program, year_level, status, is_demo", { count: "exact" })
     .order("last_name")
     .order("first_name")
+    .order("id")
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
-  if (q) query = query.or(ilikeAny(["student_number", "first_name", "last_name"], q));
-  if (college) query = query.ilike("college", `%${college}%`);
+  for (const words of ilikeEveryWord(STUDENT_SEARCH_COLUMNS, q)) query = query.or(words);
   if (year && /^[1-6]$/.test(year)) query = query.eq("year_level", Number(year));
   if (status === "active" || status === "inactive" || status === "graduated") query = query.eq("status", status);
   if (scope !== "all") query = query.eq("is_demo", scope === "demo");
 
   const { data: students, count, error } = await query;
   // A page number past the end: go back to the first page.
-  if (error?.code === "PGRST103") redirect(hrefWith("/students", sp, { page: undefined }));
-  const filtered = Boolean(q || college || year || status || scope !== "all");
+  if (pageOutOfRange(page, count, error)) redirect(hrefWith("/students", sp, { page: undefined }));
+  const filtered = Boolean(q || year || status || scope !== "all");
 
   return (
     <div className="grid gap-5">
@@ -74,8 +73,7 @@ export default async function StudentsPage({ searchParams }: PageProps<"/student
       />
 
       <FilterBar>
-        <SearchInput defaultValue={param(sp, "q")} placeholder="Student number or name" />
-        <FilterText name="college" label="College" defaultValue={param(sp, "college")} />
+        <SearchInput defaultValue={param(sp, "q")} placeholder="Search student ID, name, college, or program..." />
         <FilterSelect name="year" label="Year" defaultValue={year} options={[{ value: "", label: "Any year" }, ...YEAR_OPTIONS]} className="sm:w-32" />
         <FilterSelect name="status" label="Status" defaultValue={status} options={[{ value: "", label: "Any status" }, ...STATUS_OPTIONS]} className="sm:w-36" />
         <FilterSelect name="scope" label="Records" defaultValue={scope} options={SCOPE_OPTIONS} className="sm:w-36" />

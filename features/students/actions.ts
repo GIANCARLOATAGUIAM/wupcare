@@ -8,6 +8,9 @@ import { dbErrorMessage, isUniqueViolation } from "@/lib/db-errors";
 import { formValues, parseForm, type FormState } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
 
+import { studentName } from "@/lib/format";
+
+import { searchStudents } from "./queries";
 import { healthRecordSchema, studentSchema } from "./schema";
 
 function duplicateNumber(formData: FormData): FormState {
@@ -88,4 +91,30 @@ export async function updateHealthRecord(studentId: string, _prev: FormState, fo
 
   revalidatePath(`/students/${studentId}`);
   redirect(`/students/${studentId}`);
+}
+
+// Student picker suggestions (visits, incidents, appointments). Clinic staff
+// only; reuses the authorized combined search (RLS: clinic_staff reads
+// students). Returns a short list of display fields plus the record ID, which
+// is what the picker passes on; typed text is never used as the selection.
+export type StudentSuggestion = {
+  id: string;
+  student_number: string;
+  name: string;
+  status: "active" | "inactive" | "graduated";
+  is_demo: boolean;
+  college: string | null;
+};
+
+export async function suggestStudents(q: string): Promise<StudentSuggestion[]> {
+  await requireRole("clinic_staff");
+  const rows = await searchStudents(String(q ?? ""), 8);
+  return rows.map((s) => ({
+    id: s.id,
+    student_number: s.student_number,
+    name: studentName(s),
+    status: s.status,
+    is_demo: s.is_demo,
+    college: s.college,
+  }));
 }

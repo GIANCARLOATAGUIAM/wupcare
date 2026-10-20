@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useRef, useState } from "react";
 
 import { SelectField, TextAreaField, TextField } from "@/components/app/fields";
 import { FormAlert, SubmitButton } from "@/components/app/form-status";
 import { Button } from "@/components/ui/button";
-import { initialFormState, type FormState } from "@/lib/forms";
+import { ConfirmationDialog } from "@/components/app/confirmation-dialog";
+import { confirmationFor, type Confirmation } from "@/components/app/confirmation";
+import { useActionRunner } from "@/components/app/use-action-runner";
+import type { FormState } from "@/lib/forms";
 import type { Tables } from "@/types/database";
 
 import { STATUS_OPTIONS, YEAR_OPTIONS } from "../schema";
@@ -22,16 +25,30 @@ export function StudentForm({
   student?: Tables<"students">;
   cancelHref: string;
 }) {
-  const [state, formAction] = useActionState(action, initialFormState);
+  const { state, pending, run, isRunning, clear } = useActionRunner();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [request, setRequest] = useState<{ confirmation: Confirmation; data: FormData } | null>(null);
+  const submit = (data: FormData) => run(() => action(state, data), () => setRequest(null));
   const e = state.fieldErrors ?? {};
   // After a failed submit, show what the user typed; otherwise the saved record.
   const v = (key: keyof Tables<"students">) =>
     state.values?.[key] ?? (student?.[key] == null ? "" : String(student[key]));
 
   return (
-    <form action={formAction} noValidate className="grid gap-6">
+    <form noValidate className="grid max-w-4xl gap-6" onSubmit={(event) => {
+      event.preventDefault();
+      if (isRunning() || request) return;
+      const data = new FormData(event.currentTarget);
+      const confirmation = confirmationFor(student ? {
+        title: "Archive Student Record?", message: "This changes the student's record status. Their profile and clinical history will be kept; nothing will be deleted.",
+        confirmLabel: "Archive Record", cancelLabel: "Keep Status",
+        whenChanged: { field: "status", from: student.status, to: ["inactive", "graduated"], label: "status", labels: { active: "Active", inactive: "Inactive", graduated: "Graduated" } },
+      } : undefined, data);
+      if (confirmation) { clear(); setRequest({ confirmation, data }); }
+      else submit(data);
+    }}>
       <FormAlert state={state} />
-
+      <fieldset disabled={pending} className="contents">
       <Section title="Student">
         <TextField name="student_number" label="Student number" required maxLength={40} defaultValue={v("student_number")} error={e.student_number} />
         <SelectField name="status" label="Status" required defaultValue={v("status") || "active"} options={STATUS_OPTIONS} error={e.status} />
@@ -70,7 +87,12 @@ export function StudentForm({
         <TextField name="guardian_contact" label="Mobile number" type="tel" inputMode="tel" placeholder="09XXXXXXXXX" defaultValue={v("guardian_contact")} error={e.guardian_contact} />
       </Section>
 
-      <FormActions cancelHref={cancelHref} submitLabel={student ? "Save changes" : "Add student"} />
+      </fieldset>
+      <FormActions cancelHref={cancelHref} submitLabel={student ? "Save changes" : "Add student"} pending={pending} submitRef={triggerRef} />
+      {request ? <ConfirmationDialog
+        confirmation={request.confirmation} pending={pending} state={state} returnFocusRef={triggerRef}
+        onCancel={() => { if (!isRunning()) setRequest(null); }} onConfirm={() => submit(request.data)}
+      /> : null}
     </form>
   );
 }
@@ -84,12 +106,12 @@ export function Section({ title, children }: { title: string; children: React.Re
   );
 }
 
-export function FormActions({ cancelHref, submitLabel }: { cancelHref: string; submitLabel: string }) {
+export function FormActions({ cancelHref, submitLabel, pending, submitRef }: { cancelHref: string; submitLabel: string; pending?: boolean; submitRef?: React.RefObject<HTMLButtonElement | null> }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <SubmitButton>{submitLabel}</SubmitButton>
+      {pending === undefined ? <SubmitButton>{submitLabel}</SubmitButton> : <Button ref={submitRef} type="submit" disabled={pending}>{pending ? "Saving…" : submitLabel}</Button>}
       <Button variant="ghost" asChild>
-        <Link href={cancelHref}>Cancel</Link>
+        <Link href={cancelHref} aria-disabled={pending || undefined} tabIndex={pending ? -1 : undefined} onClick={(event) => { if (pending) event.preventDefault(); }}>Cancel</Link>
       </Button>
     </div>
   );
