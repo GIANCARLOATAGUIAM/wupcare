@@ -45,7 +45,7 @@ export function IncidentForm({
   const v = (k: keyof IncidentDefaults) => state.values?.[k] ?? (defaults[k] ?? "");
 
   return (
-    <form action={formAction} noValidate className="grid gap-5">
+    <form action={formAction} noValidate className="grid max-w-4xl gap-5">
       <FormAlert state={state} />
       {Object.entries(hidden).map(([k, val]) => (
         <input key={k} type="hidden" name={k} value={val} />

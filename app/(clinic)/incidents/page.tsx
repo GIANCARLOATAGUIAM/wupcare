@@ -1,3 +1,4 @@
+import { pageOutOfRange } from "@/lib/pagination";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -51,6 +52,7 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
       { count: "exact" }
     )
     .order("occurred_at", { ascending: false })
+    .order("id")
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   if (type && INCIDENT_TYPES.some((t) => t.value === type)) query = query.eq("type", type as IncidentType);
@@ -62,7 +64,7 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
   }
   const { data: rows, count, error } = await query;
   // A page number past the end: go back to the first page.
-  if (error?.code === "PGRST103") redirect(hrefWith("/incidents", sp, { page: undefined }));
+  if (pageOutOfRange(page, count, error)) redirect(hrefWith("/incidents", sp, { page: undefined }));
 
   return (
     <div className="grid gap-5">

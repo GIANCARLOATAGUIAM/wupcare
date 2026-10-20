@@ -44,7 +44,7 @@ export function VisitForm({
   const v = (key: keyof VisitDefaults) => state.values?.[key] ?? (defaults[key] ?? "");
 
   return (
-    <form action={formAction} noValidate className="grid gap-5">
+    <form action={formAction} noValidate className="grid max-w-4xl gap-5">
       <FormAlert state={state} />
       {Object.entries(hidden).map(([k, val]) => (
         <input key={k} type="hidden" name={k} value={val} />

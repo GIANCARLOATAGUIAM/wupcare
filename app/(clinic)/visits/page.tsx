@@ -1,3 +1,4 @@
+import { pageOutOfRange } from "@/lib/pagination";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -50,6 +51,7 @@ export default async function VisitsPage({ searchParams }: PageProps<"/visits">)
       { count: "exact" }
     )
     .order("visit_at", { ascending: false })
+    .order("id")
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   if (from) query = query.gte("visit_at", manilaDayStart(from));
@@ -64,7 +66,7 @@ export default async function VisitsPage({ searchParams }: PageProps<"/visits">)
 
   const { data: visits, count, error } = await query;
   // A page number past the end: go back to the first page.
-  if (error?.code === "PGRST103") redirect(hrefWith("/visits", sp, { page: undefined }));
+  if (pageOutOfRange(page, count, error)) redirect(hrefWith("/visits", sp, { page: undefined }));
 
   return (
     <div className="grid gap-5">
