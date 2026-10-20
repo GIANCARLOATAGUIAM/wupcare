@@ -4,6 +4,8 @@ Deploy only with explicit authorization. The checklist tracks remaining verifica
 
 ## 1. Before deploying
 
+- [ ] **Client revisions (2026-10-21):** apply `0011_exact_report_counts.sql` and `0013_client_revisions.sql` (both prepared, not applied; owner approval required) BEFORE deploying the matching code. The code requires 0013 for admin dashboard totals, admin stock history, admin inventory writes and the academic-profile step. See `CLIENT_REVISIONS.md`.
+
 - [ ] **Rotate the Supabase service-role key.** The current key was exposed during development. Create a new secret key (`sb_secret_…`) or rotate the JWT secret, then disable the legacy keys.
 - [x] Migration `0010_student_self_registration.sql` is applied on the configured project (version `20261020032859`, verified 2026-10-20). Verify schema/type agreement separately for any new deployment target.
 - [ ] Re-run the Supabase security advisor. The 2026-10-20 read-only review found 13 intentional guarded SECURITY DEFINER warnings plus disabled leaked-password protection. See `SECURITY_REVIEW.md`.
@@ -41,7 +43,8 @@ Deploy only with explicit authorization. The checklist tracks remaining verifica
 - [ ] Create the first administrator: `node scripts/create-admin.mjs --email <email> --name "<name>"` (run locally against the production project). Then create clinic personnel in Users.
 - [ ] Smoke test each role: sign in, home page, sign out. Signed-out access to `/dashboard` redirects to `/login`.
 - [ ] Clinic personnel: add a student, record a visit with medication, approve an appointment, run a report and print it.
-- [ ] Administrator: Month/Year/Records filters query one Manila month and print complete aggregates; no student medical records. Small counts remain "<5" until proposed migration 0011 is explicitly approved/applied, then verify exact counts 1–4. See `ADMIN_REPORTS.md`.
+- [ ] Administrator: Month/Year/Records filters query one Manila month and print complete aggregates with exact counts (0011); no student medical records. See `ADMIN_REPORTS.md`.
+- [ ] Client revisions 2026-10-21: verify admin/nurse dashboards, Complete Your Profile, admin Medicine Inventory and nurse issuance per `CLIENT_REVISIONS.md`.
 - [ ] If registration is enabled: register a test student, approve the link, request an appointment, then deactivate the test account.
 - [ ] Check the Supabase logs for errors.
 
