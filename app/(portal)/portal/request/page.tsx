@@ -22,7 +22,7 @@ export default async function RequestPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Request appointment" description="The clinic will review your request and confirm a schedule." />
+      <PageHeader title="Request Appointment" description="The clinic will review your request and confirm a schedule." />
       {settings ? (
         <RequestForm action={requestAppointment} cancelHref="/portal" {...requestLimits(settings)} />
       ) : (
