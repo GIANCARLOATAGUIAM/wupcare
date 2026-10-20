@@ -1,98 +1,57 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { initialFormState, type FormState } from "@/lib/forms";
+import type { FormState } from "@/lib/forms";
 import { cn } from "@/lib/utils";
 
+import { confirmationFor, type Confirmation, type ConfirmationRule } from "./confirmation";
+import { ConfirmationDialog } from "./confirmation-dialog";
 import { FormAlert } from "./form-status";
+import { useActionRunner } from "./use-action-runner";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
-/**
- * Small inline form for one action (approve, restock, issue, ...).
- * Submits inside a transition instead of through the form `action` prop,
- * so typed values are kept when the server returns an error. The form is
- * cleared only after a successful save.
- *
- * With `confirm`, the first click asks for confirmation inline (no modal):
- * the message and a confirm button appear in place, and focus moves to it.
- */
-export function ActionForm({
-  action,
-  submitLabel,
-  pendingLabel = "Saving…",
-  variant = "default",
-  confirm,
-  className,
-  children,
-}: {
+// Typed values stay in the form on errors. Confirmation snapshots the submitted
+// values; Cancel does not dispatch anything. Ordinary actions still submit once.
+export function ActionForm({ action, submitLabel, pendingLabel = "Saving…", variant = "default", confirm, className, children }: {
   action: Action;
   submitLabel: string;
   pendingLabel?: string;
   variant?: "default" | "outline" | "destructive" | "secondary";
-  confirm?: { message: string; confirmLabel: string };
+  confirm?: ConfirmationRule;
   className?: string;
   children?: React.ReactNode;
 }) {
-  const [state, dispatch] = useActionState(action, initialFormState);
-  const [pending, startTransition] = useTransition();
-  // Armed for the current result only: any new server result disarms it.
-  const [armedFor, setArmedFor] = useState<FormState | null>(null);
-  const armed = armedFor === state;
+  const { state, pending, run, isRunning, clear } = useActionRunner();
+  const [request, setRequest] = useState<{ confirmation: Confirmation; data: FormData } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (state.ok) formRef.current?.reset();
-  }, [state]);
-
-  useEffect(() => {
-    if (armed) confirmRef.current?.focus();
-  }, [armed]);
-
-  // Inline forms have no per-field error slots, so field messages are shown
-  // in the alert itself.
-  const fieldMessages = Object.values(state.fieldErrors ?? {});
-  const shown = fieldMessages.length ? { error: fieldMessages.join(" ") } : state;
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const fieldErrors = Object.values(state.fieldErrors ?? {});
+  const shown = fieldErrors.length ? { error: fieldErrors.join(" ") } : state;
+  const submit = (data: FormData) => run(() => action(state, data), () => {
+    setRequest(null);
+    formRef.current?.reset();
+  });
 
   return (
-    <form
-      ref={formRef}
-      noValidate
-      className={cn("grid gap-3", className)}
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (confirm && !armed) {
-          setArmedFor(state);
-          return;
-        }
-        const formData = new FormData(e.currentTarget);
-        startTransition(() => dispatch(formData));
-      }}
-    >
+    <form ref={formRef} noValidate className={cn("grid gap-3", className)} onSubmit={(event) => {
+      event.preventDefault();
+      if (isRunning() || request) return;
+      const data = new FormData(event.currentTarget);
+      const confirmation = confirmationFor(confirm, data);
+      if (confirmation) { clear(); setRequest({ confirmation, data }); }
+      else submit(data);
+    }}>
       <FormAlert state={shown} />
-      {children}
-      {armed && confirm ? (
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Confirm action">
-          <p className="w-full text-sm" aria-live="polite">
-            {confirm.message}
-          </p>
-          <Button ref={confirmRef} type="submit" variant={variant} disabled={pending}>
-            {pending ? pendingLabel : confirm.confirmLabel}
-          </Button>
-          <Button type="button" variant="ghost" onClick={() => setArmedFor(null)} disabled={pending}>
-            Keep it
-          </Button>
-        </div>
-      ) : (
-        <div>
-          <Button type="submit" variant={variant} disabled={pending}>
-            {pending ? pendingLabel : submitLabel}
-          </Button>
-        </div>
-      )}
+      <fieldset disabled={pending} className="contents">{children}</fieldset>
+      <div><Button ref={triggerRef} type="submit" variant={variant} disabled={pending}>{pending ? pendingLabel : submitLabel}</Button></div>
+      {request ? <ConfirmationDialog
+        confirmation={request.confirmation} pending={pending} state={state} returnFocusRef={triggerRef}
+        onCancel={() => { if (!isRunning()) setRequest(null); }}
+        onConfirm={() => submit(request.data)}
+      /> : null}
     </form>
   );
 }
