@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login } from "@/features/auth/actions";
+import { PasswordField } from "@/features/auth/password-field";
 import type { LoginFormState } from "@/features/auth/schema";
 
 const initialState: LoginFormState = {};
@@ -26,7 +27,7 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
       ) : null}
 
       <div className="grid gap-1.5">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">Email Address</Label>
         <Input
           id="email"
           name="email"
@@ -39,7 +40,7 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
           disabled={disabled}
           aria-invalid={Boolean(fieldErrors.email)}
           aria-describedby={fieldErrors.email ? "email-error" : undefined}
-          className="h-9"
+          className="h-11"
         />
         {fieldErrors.email ? (
           <p id="email-error" className="text-xs text-destructive">
@@ -48,34 +49,22 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
         ) : null}
       </div>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          disabled={disabled}
-          aria-invalid={Boolean(fieldErrors.password)}
-          aria-describedby={fieldErrors.password ? "password-error" : undefined}
-          className="h-9"
-        />
-        {fieldErrors.password ? (
-          <p id="password-error" className="text-xs text-destructive">
-            {fieldErrors.password}
-          </p>
-        ) : null}
-      </div>
+      <PasswordField
+        name="password"
+        label="Password"
+        autoComplete="current-password"
+        disabled={disabled}
+        error={fieldErrors.password}
+      />
 
-      <Button type="submit" size="lg" disabled={disabled || pending} className="w-full">
+      <Button type="submit" size="lg" disabled={disabled || pending} className="mt-1 h-11 w-full text-[15px]">
         {pending ? (
           <>
-            <LoaderCircle className="animate-spin" />
-            Signing in…
+            <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+            Logging in…
           </>
         ) : (
-          "Sign in"
+          "Login"
         )}
       </Button>
     </form>

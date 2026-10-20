@@ -3,11 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CircleAlert, Settings2 } from "lucide-react";
 
-import { Brand } from "@/components/app/brand";
-import { Disclaimer } from "@/components/app/disclaimer";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/features/auth/actions";
+import { AuthHeading, AuthShell } from "@/features/auth/auth-shell";
 import { getAuthState, type AccountProblem } from "@/lib/auth/dal";
 import { ROLE_HOME } from "@/lib/auth/roles";
 import { studentRegistrationEnabled } from "@/lib/features";
@@ -15,7 +14,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 import { LoginForm } from "./login-form";
 
-export const metadata: Metadata = { title: "Sign in" };
+export const metadata: Metadata = { title: "Login" };
 
 const PROBLEM_COPY: Record<AccountProblem, { title: string; body: string }> = {
   no_profile: {
@@ -38,82 +37,59 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const configured = isSupabaseConfigured();
 
   return (
-    <div className="grid min-h-dvh grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
-      <aside className="hidden flex-col justify-between border-r bg-sidebar p-10 lg:flex">
-        <Brand />
-        <div className="grid gap-3">
-          <p className="text-lg font-medium leading-snug tracking-tight text-balance">
-            Student health records, clinic visits, appointments, and medicine
-            inventory in one place.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            For authorized clinic personnel, administrators, and students of
-            Wesleyan University-Philippines.
-          </p>
-        </div>
-        <Disclaimer className="max-w-sm" />
-      </aside>
+    <AuthShell>
+      <div className="grid gap-7">
+        {state.status === "blocked" ? (
+          <BlockedAccount problem={state.problem} email={state.email} />
+        ) : (
+          <>
+            <AuthHeading title="Welcome Back" description="Login to access your WUPCare account." />
 
-      <main className="flex flex-col px-4 py-8 sm:px-8">
-        <Brand className="lg:hidden" />
+            {!configured ? (
+              <Alert>
+                <Settings2 />
+                <AlertTitle>Supabase is not configured</AlertTitle>
+                <AlertDescription>
+                  Copy <code className="font-mono text-xs">.env.example</code>{" "}
+                  to <code className="font-mono text-xs">.env.local</code> and
+                  add the project URL and publishable key, then restart the
+                  dev server.
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
-        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-7 py-10">
-          {state.status === "blocked" ? (
-            <BlockedAccount problem={state.problem} email={state.email} />
-          ) : (
-            <>
-              <div className="grid gap-1.5">
-                <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-                <p className="text-sm text-muted-foreground">
-                  Use your WUPCare email and password.
-                </p>
-              </div>
+            {confirmFailed ? (
+              <Alert variant="destructive">
+                <CircleAlert />
+                <AlertDescription>
+                  The confirmation link is invalid or has expired. Log in if you already confirmed, or register again.
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
-              {!configured ? (
-                <Alert>
-                  <Settings2 />
-                  <AlertTitle>Supabase is not configured</AlertTitle>
-                  <AlertDescription>
-                    Copy <code className="font-mono text-xs">.env.example</code>{" "}
-                    to <code className="font-mono text-xs">.env.local</code> and
-                    add the project URL and publishable key, then restart the
-                    dev server.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
+            <LoginForm disabled={!configured} />
 
-              {confirmFailed ? (
-                <Alert variant="destructive">
-                  <CircleAlert />
-                  <AlertDescription>
-                    The confirmation link is invalid or has expired. Sign in if you already confirmed, or register again.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-
-              <LoginForm disabled={!configured} />
-
+            <div className="grid gap-1.5 border-t pt-5 text-sm">
               {registration ? (
-                <p className="text-sm text-muted-foreground">
-                  Student without an account?{" "}
-                  <Link href="/register" className="text-primary hover:underline">
-                    Create a student account
+                <p className="text-muted-foreground">
+                  New student?{" "}
+                  <Link href="/register" className="font-medium text-primary hover:underline">
+                    Create an account
                   </Link>
-                  <span className="mt-1 block text-xs">Clinic personnel accounts are created by the administrator.</span>
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  There is no public sign-up. Accounts are created by the clinic
-                  administrator.
+                <p className="text-muted-foreground">
+                  New student? Student sign-up is temporarily unavailable.
                 </p>
               )}
-            </>
-          )}
-        </div>
-
-        <Disclaimer className="mx-auto w-full max-w-sm lg:hidden" />
-      </main>
-    </div>
+              <p className="text-xs text-muted-foreground">
+                Clinic personnel and administrator accounts are created by the clinic administrator.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+    </AuthShell>
   );
 }
 
@@ -139,8 +115,8 @@ function BlockedAccount({
         </p>
       ) : null}
       <form action={logout}>
-        <Button type="submit" variant="outline" size="lg" className="w-full">
-          Sign out
+        <Button type="submit" variant="outline" size="lg" className="h-11 w-full">
+          Log out
         </Button>
       </form>
     </div>

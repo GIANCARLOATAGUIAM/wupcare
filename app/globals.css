@@ -3,6 +3,10 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/* Collapsed desktop sidebar (html[data-sidebar=collapsed], set before paint;
+   components/app/sidebar-preference.ts). Only inside [data-desktop-sidebar],
+   so the mobile drawer always keeps its full labels. */
+@custom-variant rail-collapsed (&:where(html[data-sidebar="collapsed"] [data-desktop-sidebar], html[data-sidebar="collapsed"] [data-desktop-sidebar] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -41,6 +45,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-brand: var(--brand);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -52,32 +58,47 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Elevation, tinted from the brand navy instead of neutral black. */
+  --shadow-soft: 0 1px 2px oklch(var(--shadow-tint) / 0.06);
+  --shadow-panel: 0 1px 2px oklch(var(--shadow-tint) / 0.05), 0 8px 20px -10px oklch(var(--shadow-tint) / 0.18);
+  --shadow-raised: 0 1px 2px oklch(var(--shadow-tint) / 0.05), 0 14px 32px -18px oklch(var(--shadow-tint) / 0.28);
+  --shadow-float: 0 10px 28px -16px oklch(var(--shadow-tint) / 0.32);
+  --shadow-popover: 0 4px 16px -6px oklch(var(--shadow-tint) / 0.22);
 }
 
 /*
  * WUPCare tokens. Light theme only.
- * Neutrals carry a faint green tint (hue 160-170) so they sit with the
- * deep green accent. The accent is reserved for primary actions, the
- * current navigation item, and focus. Status colors follow SYSTEM_SPEC §6.3.
+ * Brand: medical blue from the official logo (wordmark ~#0088B8, icon
+ * ~#0090C8). That blue gives white text only ~4:1, so --primary is a slightly
+ * deeper shade of the same hue (#0A6F99, 5.6:1 with white) for buttons, links
+ * and active states; --brand keeps the logo blue for non-text accents.
+ * Neutrals carry a faint blue tint (hue ~230). Status colors are unchanged and
+ * stay semantic (SYSTEM_SPEC §6.3): success green, warning amber, destructive
+ * red, info blue (hue 250, distinct from the brand's cyan-blue).
+ * Contrast checked: foreground/background 12.7:1, muted-foreground >= 4.9:1 on
+ * every surface, primary on accent 4.95:1, white/85 on primary 4.5:1.
  */
 :root {
   color-scheme: light;
 
-  --background: oklch(0.99 0.003 165);
-  --foreground: oklch(0.22 0.015 170);
+  --background: oklch(0.986 0.005 229); /* #F7FBFD */
+  --foreground: oklch(0.307 0.045 235); /* #163343 */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.015 170);
+  --card-foreground: oklch(0.307 0.045 235);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.015 170);
+  --popover-foreground: oklch(0.307 0.045 235);
 
-  --primary: oklch(0.44 0.085 158);
-  --primary-foreground: oklch(0.985 0.005 160);
-  --secondary: oklch(0.955 0.012 160);
-  --secondary-foreground: oklch(0.3 0.05 160);
-  --muted: oklch(0.965 0.006 165);
-  --muted-foreground: oklch(0.5 0.015 170);
-  --accent: oklch(0.955 0.018 160);
-  --accent-foreground: oklch(0.32 0.06 158);
+  --brand: oklch(0.589 0.121 232); /* logo blue #0088B8 */
+  --primary: oklch(0.511 0.105 234); /* #0A6F99 */
+  --primary-hover: oklch(0.448 0.092 235); /* #085C80 */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.956 0.016 227); /* #E6F3F9 */
+  --secondary-foreground: oklch(0.434 0.086 233); /* #0A5878 */
+  --muted: oklch(0.963 0.008 229); /* #EEF4F7 */
+  --muted-foreground: oklch(0.514 0.039 237); /* #526B7B */
+  --accent: oklch(0.956 0.016 227); /* soft blue #E6F3F9 */
+  --accent-foreground: oklch(0.434 0.086 233); /* #0A5878 */
 
   --destructive: oklch(0.5 0.19 27);
   --success: oklch(0.46 0.11 150);
@@ -87,26 +108,29 @@
   --info: oklch(0.47 0.13 250);
   --info-foreground: oklch(0.985 0.005 250);
 
-  --border: oklch(0.915 0.008 165);
-  --input: oklch(0.86 0.01 165);
-  --ring: oklch(0.55 0.09 158);
+  --border: oklch(0.921 0.014 231); /* #DCE7ED */
+  --input: oklch(0.834 0.026 233); /* #B9CCD7 */
+  --ring: oklch(0.602 0.116 232); /* #1A8CBA, 3.8:1 on white */
 
-  --chart-1: oklch(0.44 0.085 158);
-  --chart-2: oklch(0.6 0.09 158);
-  --chart-3: oklch(0.52 0.13 250);
+  /* Shadow tint as bare L C H, used as oklch(var(--shadow-tint) / alpha). */
+  --shadow-tint: 0.307 0.045 235;
+
+  --chart-1: oklch(0.511 0.105 234);
+  --chart-2: oklch(0.695 0.102 229);
+  --chart-3: oklch(0.629 0.099 184);
   --chart-4: oklch(0.8 0.14 75);
   --chart-5: oklch(0.55 0.2 27);
 
   --radius: 0.5rem;
 
-  --sidebar: oklch(0.972 0.007 165);
-  --sidebar-foreground: oklch(0.3 0.02 170);
-  --sidebar-primary: oklch(0.44 0.085 158);
-  --sidebar-primary-foreground: oklch(0.985 0.005 160);
-  --sidebar-accent: oklch(0.925 0.022 160);
-  --sidebar-accent-foreground: oklch(0.3 0.07 158);
-  --sidebar-border: oklch(0.905 0.01 165);
-  --sidebar-ring: oklch(0.55 0.09 158);
+  --sidebar: oklch(0.969 0.008 229); /* #F0F6F9 */
+  --sidebar-foreground: oklch(0.36 0.045 235);
+  --sidebar-primary: oklch(0.511 0.105 234);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.938 0.022 226); /* #DCEEF6 */
+  --sidebar-accent-foreground: oklch(0.434 0.086 233);
+  --sidebar-border: oklch(0.915 0.014 231);
+  --sidebar-ring: oklch(0.602 0.116 232);
 }
 
 @layer base {
@@ -116,14 +140,14 @@
   html {
     @apply font-sans;
     -webkit-text-size-adjust: 100%;
-    scrollbar-color: oklch(0.8 0.012 165) transparent;
+    scrollbar-color: var(--input) transparent;
   }
   body {
     @apply bg-background text-foreground antialiased;
     caret-color: var(--primary);
   }
   ::selection {
-    background-color: oklch(0.44 0.085 158 / 0.18);
+    background-color: color-mix(in oklch, var(--brand) 22%, transparent);
     color: var(--foreground);
   }
   a {
@@ -137,6 +161,13 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
     border-radius: 2px;
+  }
+}
+
+/* Landing page: smooth in-page anchor scrolling, unless reduced motion is set. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has([data-landing]) {
+    scroll-behavior: smooth;
   }
 }
 
@@ -159,5 +190,16 @@
   }
   tr {
     break-inside: avoid;
+  }
+}
+
+/* Automatic list filters: dim the results while the new URL loads. */
+main:has(form[data-filter-pending]) [data-slot="table-container"] {
+  opacity: 0.6;
+  transition: opacity 150ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  main:has(form[data-filter-pending]) [data-slot="table-container"] {
+    transition: none;
   }
 }
