@@ -7,21 +7,14 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
 
-export const PAGE_SIZE = 25;
+import { DateInput } from "./date-input";
+
+import { hrefWith, pageInfo } from "@/lib/pagination";
+export { PAGE_SIZE, pageParam, param, hrefWith } from "@/lib/pagination";
+import { param, type SearchParams } from "@/lib/pagination";
+export type { SearchParams } from "@/lib/pagination";
 
 export type Scope = "all" | "real" | "demo";
-
-export type SearchParams = Record<string, string | string[] | undefined>;
-
-export function param(sp: SearchParams, key: string) {
-  const v = sp[key];
-  return Array.isArray(v) ? v[0] : v;
-}
-
-export function pageParam(sp: SearchParams) {
-  const n = Number(param(sp, "page"));
-  return Number.isInteger(n) && n > 0 ? n : 1;
-}
 
 export function scopeParam(sp: SearchParams, fallback: Scope = "all"): Scope {
   const v = param(sp, "scope");
@@ -33,32 +26,8 @@ export function dateParam(sp: SearchParams, key: string) {
   return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined;
 }
 
-// Builds a URL that keeps the current filters and changes some of them.
-export function hrefWith(path: string, sp: SearchParams, changes: Record<string, string | undefined>) {
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(sp)) {
-    const value = Array.isArray(v) ? v[0] : v;
-    if (value) params.set(k, value);
-  }
-  for (const [k, v] of Object.entries(changes)) {
-    if (v) params.set(k, v);
-    else params.delete(k);
-  }
-  const qs = params.toString();
-  return qs ? `${path}?${qs}` : path;
-}
-
-// GET form for list filters. Works without client JavaScript.
-export function FilterBar({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <form method="get" className={cn("flex flex-wrap items-end gap-3", className)} role="search">
-      {children}
-      <Button type="submit" variant="outline">
-        Apply
-      </Button>
-    </form>
-  );
-}
+// Applies automatically (no Apply button); every change resets to page one.
+export { AutoFilterBar as FilterBar } from "./auto-filter-bar";
 
 export function SearchInput({ defaultValue, placeholder, label = "Search" }: { defaultValue?: string; placeholder: string; label?: string }) {
   return (
@@ -120,7 +89,7 @@ export function FilterDate({ name, label, defaultValue }: { name: string; label:
       <Label htmlFor={`f-${name}`} className="text-xs text-muted-foreground">
         {label}
       </Label>
-      <Input id={`f-${name}`} name={name} type="date" defaultValue={defaultValue} />
+      <DateInput id={`f-${name}`} name={name} defaultValue={defaultValue} clearable clearLabel={`Clear ${label.toLowerCase()} date`} />
     </div>
   );
 }
@@ -142,17 +111,15 @@ export function Pagination({
   page: number;
   total: number;
 }) {
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  if (total === 0) return null;
-  const from = (page - 1) * PAGE_SIZE + 1;
-  const to = Math.min(page * PAGE_SIZE, total);
+  const { pages, from, to } = pageInfo(page, total);
 
   return (
-    <nav aria-label="Pagination" className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground print:hidden">
       <p className="tabular">
-        {from}–{to} of {total}
+        Showing {from}–{to} of {total} records
       </p>
-      <div className="flex gap-1">
+      <div className="flex items-center gap-2">
+        <span className="tabular text-xs">Page {page} of {pages}</span>
         <PageLink href={hrefWith(path, sp, { page: String(page - 1) })} disabled={page <= 1} label="Previous page">
           <ChevronLeft />
         </PageLink>
