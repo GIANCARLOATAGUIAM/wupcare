@@ -8,7 +8,7 @@ import { requireRole } from "@/lib/auth/dal";
 export const metadata: Metadata = { title: "Add medicine" };
 
 export default async function NewMedicinePage() {
-  await requireRole("clinic_staff");
+  await requireRole("admin");
   return (
     <div className="grid gap-5">
       <PageHeader title="Add medicine" />

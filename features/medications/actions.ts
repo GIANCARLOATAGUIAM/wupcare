@@ -50,12 +50,19 @@ async function findDuplicate(
 function refresh(id?: string) {
   revalidatePath("/medications");
   if (id) revalidatePath(`/medications/${id}`);
+  // Both dashboards show stock alerts.
+  revalidatePath("/dashboard");
 }
+
+// Client revision 2026-10-21: Administrators manage the inventory (add, edit,
+// deactivate, restock, adjust); clinic personnel only issue medicine. Each
+// action checks the role here, and migration 0013 enforces the same split in
+// RLS and the stock functions.
 
 // FR-MED-1, DFD 5.1. New medicines start at 0; the starting stock is saved
 // as a restock transaction so stock always equals the ledger.
 export async function createMedicine(_prev: FormState, formData: FormData): Promise<FormState> {
-  await requireRole("clinic_staff");
+  await requireRole("admin");
   const parsed = parseForm(newMedicineSchema, formData);
   if (parsed.state) return parsed.state;
   const { starting_stock, ...medicine } = parsed.data;
@@ -96,7 +103,7 @@ export async function createMedicine(_prev: FormState, formData: FormData): Prom
 }
 
 export async function updateMedicine(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  await requireRole("clinic_staff");
+  await requireRole("admin");
   const parsed = parseForm(medicineSchema, formData);
   if (parsed.state) return parsed.state;
 
@@ -122,7 +129,7 @@ export async function updateMedicine(id: string, _prev: FormState, formData: For
 
 // FR-MED-7: medicines are deactivated, never deleted.
 export async function setMedicineActive(id: string, active: boolean): Promise<FormState> {
-  await requireRole("clinic_staff");
+  await requireRole("admin");
   const supabase = await createClient();
   const { data, error } = await supabase.from("medicines").update({ is_active: active }).eq("id", id).select("id");
   if (error) return { error: dbErrorMessage(error) };
@@ -135,7 +142,7 @@ const restockSchema = z.object({ quantity: positiveInt("Quantity"), notes: optio
 
 // DFD 5.2
 export async function restockMedicine(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  await requireRole("clinic_staff");
+  await requireRole("admin");
   const parsed = parseForm(restockSchema, formData);
   if (parsed.state) return parsed.state;
 
@@ -162,7 +169,7 @@ const adjustSchema = z.object({
 
 // FR-MED-4: correction with a required reason. Negative removes stock.
 export async function adjustMedicine(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  await requireRole("clinic_staff");
+  await requireRole("admin");
   const parsed = parseForm(adjustSchema, formData);
   if (parsed.state) return parsed.state;
 

@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Edit medicine" };
 
 export default async function EditMedicinePage({ params }: PageProps<"/medications/[id]/edit">) {
-  await requireRole("clinic_staff");
+  await requireRole("admin");
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const supabase = await createClient();

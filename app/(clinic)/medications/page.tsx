@@ -43,7 +43,9 @@ const ACTIVE_OPTIONS = [
 ];
 
 export default async function MedicationsPage({ searchParams }: PageProps<"/medications">) {
-  await requireRole("clinic_staff");
+  // Both roles see the inventory; only Administrators add medicines.
+  const user = await requireRole("admin", "clinic_staff");
+  const isAdmin = user.role === "admin";
   const sp = await searchParams;
   const q = searchTerm(param(sp, "q"));
   const flag = param(sp, "flag");
@@ -74,15 +76,21 @@ export default async function MedicationsPage({ searchParams }: PageProps<"/medi
   return (
     <div className="grid gap-5">
       <PageHeader
-        title="Medications"
-        description="Medicine inventory, stock levels, and expiration."
+        title={isAdmin ? "Medicine Inventory" : "Medications"}
+        description={
+          isAdmin
+            ? "Add medicines, restock, adjust stock, and review stock history."
+            : "Stock levels and expiration. Open a medicine to issue it to a student; the inventory is managed by the administrator."
+        }
         actions={
-          <Button asChild>
-            <Link href="/medications/new">
-              <Plus />
-              Add medicine
-            </Link>
-          </Button>
+          isAdmin ? (
+            <Button asChild>
+              <Link href="/medications/new">
+                <Plus />
+                Add medicine
+              </Link>
+            </Button>
+          ) : null
         }
       />
 
